@@ -4,12 +4,14 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.example.login.db.entity.Attendance
 import com.example.login.db.entity.Course
 import com.example.login.db.entity.Student
 import com.example.login.db.entity.Subject
 import com.example.login.db.entity.Teacher
 import com.example.login.db.entity.Class
 import com.example.login.db.entity.CoursePeriod
+import com.example.login.db.entity.Session
 
 @Dao
 interface StudentsDao {
@@ -24,6 +26,26 @@ interface StudentsDao {
 
     @Query("SELECT * FROM students ")
     suspend fun getAllStudents(): List<Student>
+
+
+    @Query("""
+    SELECT * FROM students 
+    WHERE studentId = :id
+    AND (
+        LOWER(studentName) LIKE '%' || LOWER(:namePart1) || '%' 
+        OR LOWER(studentName) LIKE '%' || LOWER(:namePart2) || '%' 
+        OR LOWER(studentName) LIKE '%' || LOWER(:namePart3) || '%'
+    )
+    LIMIT 1
+""")
+    suspend fun getAndMatchStudentByIdName(
+        id: String,
+        namePart1: String?,
+        namePart2: String?,
+        namePart3: String?
+    ): Student?
+
+
 }
 
 
@@ -40,6 +62,26 @@ interface TeachersDao {
 
     @Query("SELECT * FROM teachers")
     suspend fun getAllTeachers(): List<Teacher>
+
+
+    @Query("""
+    SELECT * FROM teachers 
+    WHERE staffId = :id
+    AND (
+        LOWER(staffName) LIKE '%' || LOWER(:namePart1) || '%' 
+        OR LOWER(staffName) LIKE '%' || LOWER(:namePart2) || '%' 
+        OR LOWER(staffName) LIKE '%' || LOWER(:namePart3) || '%'
+    )
+    LIMIT 1
+""")
+    suspend fun getAndMatchTeacherByIdName(
+        id: String,
+        namePart1: String?,
+        namePart2: String?,
+        namePart3: String?
+    ): Teacher?
+
+
 }
 
 
@@ -74,6 +116,8 @@ interface ClassDao {
 
     @Query("SELECT * FROM classes")
     suspend fun getAllClasses(): List<Class>
+
+
 }
 
 
@@ -85,4 +129,40 @@ interface CoursePeriodDao {
 
     @Query("SELECT * FROM course_periods")
     suspend fun getAllCoursePeriods(): List<CoursePeriod>
+}
+
+
+@Dao
+interface SessionDao {
+
+    // Insert new session
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSession(session: Session)
+
+    // Optional: Get all sessions
+    @Query("SELECT * FROM sessions ORDER BY startTime DESC")
+    suspend fun getAllSessions(): List<Session>
+
+    @Query("UPDATE sessions SET endTime = :endTime WHERE sessionId = :sessionId")
+    suspend fun updateSessionEnd(sessionId: String,  endTime: String)
+
+    // Optional: Get current session by ID
+    @Query("SELECT * FROM sessions WHERE sessionId = :sessionId LIMIT 1")
+    suspend fun getSessionById(sessionId: String): Session?
+}
+
+
+@Dao
+interface AttendanceDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttendance(attendance: Attendance): Long
+
+
+    @Query("SELECT DISTINCT classId FROM attendance WHERE sessionId = :sessionId")
+    suspend fun getDistinctClassIdsForCurrentSession(sessionId: String): List<String>
+
+    @Query("DELETE FROM attendance WHERE sessionId = :sessionId AND classId NOT IN (:selectedClassIds)")
+    suspend fun deleteAttendanceNotInClasses(selectedClassIds: List<String>, sessionId: String)
+
+
 }

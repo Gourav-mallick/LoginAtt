@@ -4,12 +4,15 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.login.db.entity.Attendance
 import com.example.login.db.entity.Student
 import com.example.login.db.entity.Teacher
 import com.example.login.db.entity.Course
 import com.example.login.db.entity.Subject
 import com.example.login.db.entity.Class
 import com.example.login.db.entity.CoursePeriod
+import com.example.login.db.entity.Session
+
 
 
 
@@ -19,7 +22,9 @@ import com.example.login.db.entity.CoursePeriod
     Course::class,
     Subject::class,
     Class::class,
-    CoursePeriod::class
+    CoursePeriod::class,
+    Session::class,
+    Attendance::class
     ],
     version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +35,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun subjectDao(): SubjectDao
     abstract fun classDao(): ClassDao
     abstract fun coursePeriodDao(): CoursePeriodDao
+    abstract fun sessionDao(): SessionDao
+    abstract fun attendanceDao(): AttendanceDao
+
 
     companion object {
         @Volatile

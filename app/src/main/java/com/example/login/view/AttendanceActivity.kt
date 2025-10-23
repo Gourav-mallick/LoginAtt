@@ -12,9 +12,16 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.login.R
 import android.app.AlertDialog
 import android.provider.Settings
+import com.example.login.db.dao.AppDatabase
 import java.net.URL
 import java.util.*
 import kotlin.concurrent.thread
+import androidx.lifecycle.lifecycleScope
+import com.example.login.db.entity.Attendance
+import com.example.login.db.entity.Session
+import com.example.login.db.entity.Student
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 
 
 class AttendanceActivity : AppCompatActivity() {
@@ -23,10 +30,33 @@ class AttendanceActivity : AppCompatActivity() {
     private lateinit var pendingIntent: PendingIntent
     private val TAG = "NFC_DEBUG"
 
+    private var currentClassroomId: String? = null
+    private var currentTeacherId: String? = null
+    private var currentClassroomName: String? = null
+    private var currentTeacherName: String? = null
+    private var currentSessionId: String? = null
+    private var isClassStarted = false
+   // private val scannedStudents = mutableListOf<Student>()
+
+    companion object {
+        private const val TAG_CLASSROOM = "CLASSROOM"
+        private const val TAG_TEACHER = "TEACHER"
+        private const val TAG_STUDENT = "STUDENT"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_attendance)
         checkDeviceTime()
+        if (savedInstanceState == null) {
+            val frag = ClassroomScanFragment.newInstance()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, frag, "CLASSROOM")
+                .commit()
+        }
+
+
+
     }
 
     override fun onResume() {
@@ -67,6 +97,10 @@ class AttendanceActivity : AppCompatActivity() {
         readCustomCardData(tag)
     }
 
+
+    // -----------------------------------------------------------------------
+    // 🔹 Step 1: Read Custom Card Data (NFC)
+    // -----------------------------------------------------------------------
     private fun readCustomCardData(tag: Tag) {
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
         val keyHex = prefs.getString("cpass", null)
@@ -106,6 +140,10 @@ class AttendanceActivity : AppCompatActivity() {
             val blockCount = mifare.getBlockCountInSector(sectorIndex)
             Log.d(TAG, "Reading sector $sectorIndex -> blocks [$firstBlock .. ${firstBlock + blockCount}]")
 
+            var name: String? = null
+            var typeChar: String? = null
+            var idValue: String? = null
+
             for (i in 0 until blockCount) {
                 val blockIndex = firstBlock + i
                 if (blockIndex == 0 || (blockIndex + 1) % 5 == 0) continue
@@ -116,7 +154,8 @@ class AttendanceActivity : AppCompatActivity() {
 
                 // 🔹 Block 1 → Name
                 if (blockIndex == firstBlock + 1) {
-                    Toast.makeText(this, "Name: $rawText", Toast.LENGTH_SHORT).show()
+                    name = rawText
+                    Toast.makeText(this, "Name: $name", Toast.LENGTH_SHORT).show()
                     Log.d(TAG, "Name: $rawText")
                 }
 
@@ -156,12 +195,22 @@ class AttendanceActivity : AppCompatActivity() {
 
                     if (typeChar == null) typeChar = "Unknown"
 
+
+
                     Log.d(TAG, "Parsed -> Facility: $facilityCode | Type: $typeChar | ID: $idValue")
                     Toast.makeText(
                         this,
                         "Facility: $facilityCode\nType: $typeChar\nID: $idValue",
                         Toast.LENGTH_LONG
                     ).show()
+
+
+                    if (typeChar != null && idValue != null) {
+                        Log.d(TAG, "Parsed: Type=$typeChar | ID=$idValue | Name=$name")
+                        handleNfcScan(name ?: "-", typeChar!!, idValue!!)
+                    } else {
+                        Toast.makeText(this, "Invalid card data!", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
 
@@ -176,6 +225,253 @@ class AttendanceActivity : AppCompatActivity() {
             }
         }
     }
+
+
+    private fun handleNfcScan(name: String, typeChar: String, idValue: String) {
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(this@AttendanceActivity)
+
+            // Split name safely
+            val nameParts = name.trim().split(" ").filter { it.isNotEmpty() }
+
+            val part1 = nameParts.getOrNull(0)
+            val part2 = nameParts.getOrNull(1)
+            val part3 = nameParts.getOrNull(2)
+
+            when (typeChar) {
+                "A" -> { // Class Card
+                    val classObj = db.classDao().getClassById(idValue)
+                    if (classObj != null) handleClassScan(classObj.classId, classObj.classShortName) //Toast.makeText(this@AttendanceActivity, "Class found!", Toast.LENGTH_SHORT).show()
+                    else Toast.makeText(this@AttendanceActivity, "Class not found!", Toast.LENGTH_SHORT).show()
+                }
+
+                "B" -> { // Teacher Card
+                    val teacher = db.teachersDao().getAndMatchTeacherByIdName( idValue,
+                        part1,
+                        part2,
+                        part3)
+                    if (teacher != null) handleTeacherScan(teacher.staffId, teacher.staffName) // Toast.makeText(this@AttendanceActivity, "Teacher  found!", Toast.LENGTH_SHORT).show()
+                    else Toast.makeText(this@AttendanceActivity, "Teacher not found!", Toast.LENGTH_SHORT).show()
+                }
+
+                "C" -> { // Student Card
+                    val student = db.studentsDao().getAndMatchStudentByIdName( idValue,
+                        part1,
+                        part2,
+                        part3)
+                    if (student != null) handleStudentScan(student)//Toast.makeText(this@AttendanceActivity, "Student found!", Toast.LENGTH_SHORT).show() //
+                    else Toast.makeText(this@AttendanceActivity, "Student not found!", Toast.LENGTH_SHORT).show()
+                }
+
+                else -> Toast.makeText(this@AttendanceActivity, "Unknown type: $typeChar", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun handleClassScan(classroomId: String, classroomName: String) {
+        lifecycleScope.launch {
+            if (!isClassStarted) {
+                // Start class
+                currentClassroomId = classroomId
+                currentClassroomName = classroomName
+                isClassStarted = true
+
+                Toast.makeText(this@AttendanceActivity, "Class started: $classroomName", Toast.LENGTH_SHORT).show()
+
+                // Navigate to Teacher Scan Fragment
+                val frag = TeacherScanFragment.newInstance(classroomName)
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragment_container, frag, TAG_TEACHER)
+                    .commitAllowingStateLoss()
+
+            } else {
+                if (currentClassroomId == classroomId) {
+                    // Same classroom scanned → show first popup
+                    Toast.makeText(this@AttendanceActivity, "Same classroom scanned!", Toast.LENGTH_SHORT).show()
+                    runOnUiThread { showEndClassDialog() }
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@AttendanceActivity,
+                            "Different classroom scanned! End current first.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }
+    }
+
+
+    private fun handleTeacherScan(teacherId: String, teacherName: String) {
+        lifecycleScope.launch {
+
+            if (!isClassStarted || currentClassroomId == null) {
+                // Card type hardcoded as TeacherCard
+                val cardType = "TeacherCard"
+              //  showCardPopup(teacherName, cardType, teacherId)
+                Toast.makeText(this@AttendanceActivity, "Scan classroom first!", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+
+
+            if (currentTeacherId != null) {
+                Toast.makeText(this@AttendanceActivity, "Teacher already scanned!", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            currentTeacherId = teacherId
+            currentTeacherName = teacherName
+
+            // Create a new session
+            val sessionId = UUID.randomUUID().toString()
+            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+
+            val session = Session(
+                sessionId = sessionId,
+                periodId = "",
+                teacherId = teacherId,
+                classId = "",
+                subjectId = "",
+                date = currentDate,
+                startTime = startTime,
+                endTime = "",
+                isMerged = 0,
+                instId = "INST001",
+                syncStatus = "pending",
+            )
+
+            val db = AppDatabase.getDatabase(this@AttendanceActivity)
+            db.sessionDao().insertSession(session)
+            currentSessionId = sessionId
+
+            Log.d("SESSION_CREATE", "New Session Created: $session")
+
+            // Navigate to Student Scan Fragment
+            val frag = StudentScanFragment.newInstance( teacherName)
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, frag,
+                    com.example.login.view.AttendanceActivity.Companion.TAG_STUDENT
+                )
+                .commitAllowingStateLoss()
+        }
+    }
+
+
+    private fun handleStudentScan(student: Student) {
+        lifecycleScope.launch {
+            // Check if class is started and teacher assigned
+
+
+            if (!isClassStarted || currentTeacherId == null) {
+                // Card type hardcoded as StudentCard
+                val cardType = "StudentCard"
+                Toast.makeText(this@AttendanceActivity, "Scan teacher first!", Toast.LENGTH_SHORT).show()
+               // showCardPopup(student.stuName, cardType, student.stuId)
+                return@launch
+            }
+
+
+            // Find fragment by tag
+            val fragment = supportFragmentManager.findFragmentByTag(com.example.login.view.AttendanceActivity.Companion.TAG_STUDENT)
+
+            // Update UI for last scanned student and increment present count
+            val added = if (fragment is StudentScanFragment) {
+                fragment.addStudent(student)
+            } else {
+                Toast.makeText(
+                    this@AttendanceActivity,
+                    "Student scanned but student screen not active",
+                    Toast.LENGTH_SHORT
+                ).show()
+                false
+            }
+
+            if (!added) {
+                Toast.makeText(
+                    this@AttendanceActivity,
+                    "${student.studentName} already marked present!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            /*
+            // ✅ Store scanned student in list if not already added
+            if (scannedStudents.none { it.stuId == student.stuId }) {
+                scannedStudents.add(student)
+                Log.d("SCANNED_LIST", "Added student: ${student.stuName} (${student.stuId})")
+            }
+
+             */
+            // Save attendance in database
+            val db = AppDatabase.getDatabase(this@AttendanceActivity)
+            val timeStamp =
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
+
+            val attendance = Attendance(
+                atteId = UUID.randomUUID().toString(),
+                sessionId = currentSessionId ?: return@launch,
+                studentId  = student.studentId,
+                classId = student.classId,
+                status = "P",
+                markedAt = timeStamp,
+                syncStatus = "pending",
+                instId = student.instId,
+            )
+
+            db.attendanceDao().insertAttendance(attendance)
+            Log.d("ATTENDANCE_INSERT", "Attendance Saved: $attendance")
+
+            // Update instruction text if needed
+            (fragment as? StudentScanFragment)?.updateInstruction("Scan Student card / other card  to continue")
+        }
+    }
+
+
+    private fun showEndClassDialog() {
+        val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+
+        AlertDialog.Builder(this)
+            .setTitle("Close Class")
+            .setMessage(
+                if (getPresentCount() == 0) "No student scanned! End class anyway?"
+                else "Do you want to close the current class?"
+            )
+            .setPositiveButton("Yes") { _, _ ->
+
+                // 1️⃣ Update session end time in DB
+                lifecycleScope.launch {
+                    val db = AppDatabase.getDatabase(this@AttendanceActivity)
+                    currentSessionId?.let { sessionId ->
+                        db.sessionDao().updateSessionEnd(sessionId, currentTime)
+                    }
+
+
+                }
+
+                // 2️⃣ Directly navigate using currentSessionId and currentTeacherId
+                val intent = Intent(this, ClassSelectActivity::class.java)
+                intent.putExtra("SESSION_ID", currentSessionId)
+                intent.putExtra("TEACHER_ID", currentTeacherId)
+              //  intent.putParcelableArrayListExtra("SCANNED_STUDENTS", ArrayList(scannedStudents))
+
+                startActivity(intent)
+                finish()
+
+
+            }
+            .setNegativeButton("No", null)
+            .show()
+    }
+
+    private fun getPresentCount(): Int {
+        val frag = supportFragmentManager.findFragmentByTag(com.example.login.view.AttendanceActivity.Companion.TAG_STUDENT)
+        return if (frag is StudentScanFragment) frag.getStudentCount() else 0
+    }
+
 
     private fun hexStringToByteArray(s: String): ByteArray {
         val len = s.length

@@ -1,34 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fragment_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="#FFFFFF">
-
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/status_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Initializing..."
-        android:textSize="16sp"
-        android:textColor="#000000"
-        android:padding="8dp" />
-
-    <TextView
-        android:id="@+id/read_data_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Scan an RFID card"
-        android:textSize="14sp"
-        android:textColor="#333333"
-        android:padding="8dp" />
-
-</LinearLayout>
+    android:background="#F9F9F9" />

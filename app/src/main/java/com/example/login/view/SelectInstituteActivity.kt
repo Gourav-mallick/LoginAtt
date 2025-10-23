@@ -197,16 +197,22 @@ class SelectInstituteActivity : AppCompatActivity() {
             val dataArray = responseObj?.optJSONArray("studentData") ?: JSONArray()
 
             val studentsList = mutableListOf<Student>()
+            val classList = mutableListOf<Class>()
+
             for (i in 0 until dataArray.length()) {
                 val obj = dataArray.getJSONObject(i)
                 val studentId = obj.optString("studentId", "")
                 val studentName = obj.optString("studentName", "")
                 val classId = obj.optString("classId", "")
+                val classShortName = obj.optString("classShortName", "")
                 val instId = obj.optString("instId", "")
                 studentsList.add(Student(studentId, studentName, classId, instId))
+                classList.add(Class(classId, classShortName))
             }
             db.studentsDao().insertAll(studentsList)
+            db.classDao().insertAll(classList)
             Log.d(TAG, "Inserted ${studentsList} students.")
+            Log.d(TAG, "Inserted ${classList} classes.")
         } else {
             Log.e(TAG, "STUDENT_API_FAILED: ${response.errorBody()?.string()}")
         }
@@ -293,7 +299,7 @@ class SelectInstituteActivity : AppCompatActivity() {
                     val coursePeriodList = mutableListOf<CoursePeriod>()
                     val courseList = mutableListOf<Course>()
                     val subjectList = mutableListOf<Subject>()
-                    val classList = mutableListOf<Class>()
+                   // val classList = mutableListOf<Class>()
 
                     for (i in 0 until dataArray.length()) {
                         val obj = dataArray.getJSONObject(i)
@@ -311,21 +317,21 @@ class SelectInstituteActivity : AppCompatActivity() {
                         // Normalize data
                         subjectList.add(Subject(subjectId, subjectTitle))
                         courseList.add(Course(courseId, subjectId, courseTitle, courseTitle))
-                        classList.add(Class(classId, classShortName))
+                       // classList.add(Class(classId, classShortName))
                         coursePeriodList.add(CoursePeriod(cpId, courseId, classId, teacherId, mpId))
                     }
 
                     // Save all in DB
                     db.subjectDao().insertAll(subjectList)
                     db.courseDao().insertAll(courseList)
-                    db.classDao().insertAll(classList)
+                   // db.classDao().insertAll(classList)
                     db.coursePeriodDao().insertAll(coursePeriodList)
 
 
                     Log.d(TAG, "DB_INSERT_SUCCESS: ${coursePeriodList} records saved")
                     Log.d(TAG, "DB_INSERT_Subjects: ${subjectList} records saved")
                     Log.d(TAG, "DB_INSERT_course: ${courseList} records saved")
-                    Log.d(TAG, "DB_INSERT_class: ${classList} records saved")
+                  //  Log.d(TAG, "DB_INSERT_class: ${classList} records saved")
         } else {
                     Log.e(TAG, "API Error: ${response.errorBody()?.string()}")
         }

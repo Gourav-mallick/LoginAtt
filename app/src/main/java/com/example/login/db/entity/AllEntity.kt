@@ -69,8 +69,8 @@ data class Session(
     val sessionId: String,
     val classId: String,
     val teacherId: String,
-    val subId: String,
-    val headId: String,
+    val subjectId:  String,
+  //  val headId: String,
     val date: String,
     val startTime: String,
     val endTime: String,
@@ -92,7 +92,7 @@ data class Attendance(
     val markedAt: String,
     val sessionId: String,
     val status: String,
-    val stuId: String,
+    val studentId: String,
     val syncStatus: String
 ):Parcelable
 
