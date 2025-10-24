@@ -36,7 +36,9 @@ class AttendanceActivity : AppCompatActivity() {
     private var currentTeacherName: String? = null
     private var currentSessionId: String? = null
     private var isClassStarted = false
-   // private val scannedStudents = mutableListOf<Student>()
+    private var isTimeValid = false
+
+    // private val scannedStudents = mutableListOf<Student>()
 
     companion object {
         private const val TAG_CLASSROOM = "CLASSROOM"
@@ -47,14 +49,16 @@ class AttendanceActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_attendance)
-        checkDeviceTime()
+        checkDeviceTime {
+            startClassroomScan()
+        }
+
         if (savedInstanceState == null) {
             val frag = ClassroomScanFragment.newInstance()
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, frag, "CLASSROOM")
                 .commit()
         }
-
 
 
     }
@@ -89,10 +93,10 @@ class AttendanceActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         val tag = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
 
-        // ✅ Get NFC Tag UID
+        //  Get NFC Tag UID
         val tagId = tag.id.joinToString(":") { String.format("%02X", it) }
         Log.d(TAG, "Tag UID: $tagId")
-        Toast.makeText(this, "Tag ID: $tagId", Toast.LENGTH_SHORT).show()
+     //   Toast.makeText(this, "Tag ID: $tagId", Toast.LENGTH_SHORT).show()
 
         readCustomCardData(tag)
     }
@@ -138,7 +142,7 @@ class AttendanceActivity : AppCompatActivity() {
 
             val firstBlock = mifare.sectorToBlock(sectorIndex)
             val blockCount = mifare.getBlockCountInSector(sectorIndex)
-            Log.d(TAG, "Reading sector $sectorIndex -> blocks [$firstBlock .. ${firstBlock + blockCount}]")
+       //     Log.d(TAG, "Reading sector $sectorIndex -> blocks [$firstBlock .. ${firstBlock + blockCount}]")
 
             var name: String? = null
             var typeChar: String? = null
@@ -150,12 +154,12 @@ class AttendanceActivity : AppCompatActivity() {
 
                 val data = mifare.readBlock(blockIndex)
                 val rawText = String(data, Charsets.ISO_8859_1).replace("\u0000", "").trim()
-                Log.d(TAG, "Block Raw text[$blockIndex] : $rawText")
+           //     Log.d(TAG, "Block Raw text[$blockIndex] : $rawText")
 
                 // 🔹 Block 1 → Name
                 if (blockIndex == firstBlock + 1) {
                     name = rawText
-                    Toast.makeText(this, "Name: $name", Toast.LENGTH_SHORT).show()
+                 //   Toast.makeText(this, "Name: $name", Toast.LENGTH_SHORT).show()
                     Log.d(TAG, "Name: $rawText")
                 }
 
@@ -198,11 +202,14 @@ class AttendanceActivity : AppCompatActivity() {
 
 
                     Log.d(TAG, "Parsed -> Facility: $facilityCode | Type: $typeChar | ID: $idValue")
+              /*
                     Toast.makeText(
                         this,
                         "Facility: $facilityCode\nType: $typeChar\nID: $idValue",
                         Toast.LENGTH_LONG
                     ).show()
+
+               */
 
 
                     if (typeChar != null && idValue != null) {
@@ -223,6 +230,19 @@ class AttendanceActivity : AppCompatActivity() {
                 Log.d(TAG, "Card connection closed.")
             } catch (_: Exception) {
             }
+        }
+    }
+
+    private fun startClassroomScan() {
+        if (isTimeValid) {
+            if (supportFragmentManager.findFragmentByTag("CLASSROOM") == null) {
+                val fragment = ClassroomScanFragment.newInstance()
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragment_container, fragment, "CLASSROOM")
+                    .commit()
+            }
+        } else {
+            Toast.makeText(this, "Please correct your device time before starting attendance.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -315,7 +335,6 @@ class AttendanceActivity : AppCompatActivity() {
             }
 
 
-
             if (currentTeacherId != null) {
                 Toast.makeText(this@AttendanceActivity, "Teacher already scanned!", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -362,32 +381,33 @@ class AttendanceActivity : AppCompatActivity() {
 
     private fun handleStudentScan(student: Student) {
         lifecycleScope.launch {
-            // Check if class is started and teacher assigned
-
-
+            // Ensure class and teacher are active
             if (!isClassStarted || currentTeacherId == null) {
-                // Card type hardcoded as StudentCard
-                val cardType = "StudentCard"
                 Toast.makeText(this@AttendanceActivity, "Scan teacher first!", Toast.LENGTH_SHORT).show()
-               // showCardPopup(student.stuName, cardType, student.stuId)
                 return@launch
             }
 
+            val db = AppDatabase.getDatabase(this@AttendanceActivity)
 
-            // Find fragment by tag
-            val fragment = supportFragmentManager.findFragmentByTag(com.example.login.view.AttendanceActivity.Companion.TAG_STUDENT)
+            // ✅ Check if student already marked present in this session
+            val existingAttendance = db.attendanceDao()
+                .getAttendanceForStudentInSession(currentSessionId ?: return@launch, student.studentId)
 
-            // Update UI for last scanned student and increment present count
-            val added = if (fragment is StudentScanFragment) {
-                fragment.addStudent(student)
-            } else {
+            if (existingAttendance != null) {
+                // Already scanned — show toast
                 Toast.makeText(
                     this@AttendanceActivity,
-                    "Student scanned but student screen not active",
+                    "${student.studentName} already scanned!",
                     Toast.LENGTH_SHORT
                 ).show()
-                false
+                return@launch
             }
+
+            // ✅ Add to fragment UI
+            val fragment = supportFragmentManager.findFragmentByTag(TAG_STUDENT)
+            val added = if (fragment is StudentScanFragment) {
+                fragment.addStudent(student)
+            } else false
 
             if (!added) {
                 Toast.makeText(
@@ -398,35 +418,23 @@ class AttendanceActivity : AppCompatActivity() {
                 return@launch
             }
 
-            /*
-            // ✅ Store scanned student in list if not already added
-            if (scannedStudents.none { it.stuId == student.stuId }) {
-                scannedStudents.add(student)
-                Log.d("SCANNED_LIST", "Added student: ${student.stuName} (${student.stuId})")
-            }
-
-             */
-            // Save attendance in database
-            val db = AppDatabase.getDatabase(this@AttendanceActivity)
-            val timeStamp =
-                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
-
+            // ✅ Save attendance in DB
+            val timeStamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
             val attendance = Attendance(
                 atteId = UUID.randomUUID().toString(),
                 sessionId = currentSessionId ?: return@launch,
-                studentId  = student.studentId,
+                studentId = student.studentId,
                 classId = student.classId,
                 status = "P",
                 markedAt = timeStamp,
                 syncStatus = "pending",
                 instId = student.instId,
             )
-
             db.attendanceDao().insertAttendance(attendance)
+
             Log.d("ATTENDANCE_INSERT", "Attendance Saved: $attendance")
 
-            // Update instruction text if needed
-            (fragment as? StudentScanFragment)?.updateInstruction("Scan Student card / other card  to continue")
+            (fragment as? StudentScanFragment)?.updateInstruction("Scan next student card")
         }
     }
 
@@ -489,31 +497,32 @@ class AttendanceActivity : AppCompatActivity() {
 
 
     // ✅ Function to check device time vs actual internet time
-    private fun checkDeviceTime() {
+    private fun checkDeviceTime(onChecked: (() -> Unit)? = null) {
         thread {
             try {
-                // Get network time from Google server
                 val connection = URL("https://google.com").openConnection()
                 connection.connect()
                 val networkTime = Date(connection.date)
                 val deviceTime = Date(System.currentTimeMillis())
 
-                // Allow small tolerance (2 minutes)
-                val timeDifference = kotlin.math.abs(deviceTime.time - networkTime.time)
-                val timeDiffInMinutes = timeDifference / (1000 * 60)
+                val difference = kotlin.math.abs(deviceTime.time - networkTime.time)
+                val diffMinutes = difference / (1000 * 60)
 
                 Log.d("TIME_CHECK", "Device Time: $deviceTime")
                 Log.d("TIME_CHECK", "Network Time: $networkTime")
-                Log.d("TIME_CHECK", "Difference (min): $timeDiffInMinutes")
+                Log.d("TIME_CHECK", "Difference (minutes): $diffMinutes")
 
-                if (timeDiffInMinutes > 2) {
-                    runOnUiThread {
-                        showTimeMismatchDialog()
-                    }
+                if (diffMinutes > 2) {
+                    isTimeValid = false
+                    runOnUiThread { showTimeMismatchDialog() }
+                } else {
+                    isTimeValid = true
+                    runOnUiThread { onChecked?.invoke() }
                 }
-
             } catch (e: Exception) {
                 Log.e("TIME_CHECK", "Error checking time: ${e.message}")
+                isTimeValid = true  // allow if no internet
+                runOnUiThread { onChecked?.invoke() }
             }
         }
     }

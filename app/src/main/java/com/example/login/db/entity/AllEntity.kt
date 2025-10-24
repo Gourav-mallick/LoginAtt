@@ -33,7 +33,9 @@ data class CoursePeriod(
     val classId: String,
     val teacherId: String?,
     val mpId: String?, // term/period reference
-): Parcelable
+    val mpLongTitle: String?,
+
+    ): Parcelable
 
 
 @Entity(tableName = "courses")
@@ -59,6 +61,7 @@ data class Class(
     @PrimaryKey val classId: String,
     val classShortName: String
 ) : Parcelable
+
 
 
 
@@ -93,9 +96,32 @@ data class Attendance(
     val sessionId: String,
     val status: String,
     val studentId: String,
-    val syncStatus: String
+    val syncStatus: String,
+    // ✅ New fields for course/subject/class mapping
+    val cpId: String? = null,               // Course Period ID
+    val courseId: String? = null,           // Course ID
+    val courseTitle: String? = null,        // Full course title
+    val courseShortName: String? = null,    // Short name of course
+    val subjectId: String? = null,          // Linked subject ID
+    val subjectTitle: String? = null,       // Subject title
+    val classShortName: String? = null,     // Human-readable class short name
+    val mpId: String? = null,               // Master period ID / term ID
+    val mpLongTitle: String? = null         // Master period long title
 ):Parcelable
 
 
+
+// 🔹 Data class for joined info (not an @Entity)
+data class CourseFullInfo(
+    val cpId: String?,
+    val courseId: String?,
+    val courseTitle: String?,
+    val courseShortName: String?,
+    val subjectId: String?,
+    val subjectTitle: String?,
+    val classShortName: String?,
+    val mpId: String?,
+    val mpLongTitle: String?
+)
 
 

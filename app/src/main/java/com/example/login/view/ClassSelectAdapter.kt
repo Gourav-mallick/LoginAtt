@@ -11,7 +11,7 @@ import com.example.login.db.entity.Class
 class ClassSelectAdapter(
     private val classList: List<Class>,
     private val preSelectedIds: List<String>,
-    private val onSelectionChanged: (List<String>) -> Unit
+    private val onClassCheckedChange: (classId: String, isChecked: Boolean, wasPreSelected: Boolean) -> Unit
 ) : RecyclerView.Adapter<ClassSelectAdapter.ClassViewHolder>() {
 
     private val selectedClasses = mutableSetOf<String>()
@@ -27,19 +27,24 @@ class ClassSelectAdapter(
 
     override fun onBindViewHolder(holder: ClassViewHolder, position: Int) {
         val item = classList[position]
+        val wasPreSelected = preSelectedIds.contains(item.classId)
+
         holder.binding.checkboxClass.text = item.classShortName
+        holder.binding.checkboxClass.setOnCheckedChangeListener(null)
         holder.binding.checkboxClass.isChecked = selectedClasses.contains(item.classId)
 
-        holder.binding.checkboxClass.setOnCheckedChangeListener(null)
         holder.binding.checkboxClass.setOnCheckedChangeListener { _: CompoundButton, isChecked: Boolean ->
             if (isChecked) selectedClasses.add(item.classId)
             else selectedClasses.remove(item.classId)
-            onSelectionChanged(selectedClasses.toList())
+            onClassCheckedChange(item.classId, isChecked, wasPreSelected)
         }
     }
 
     override fun getItemCount() = classList.size
 
+    fun getSelectedClasses(): List<String> = selectedClasses.toList()
+
     inner class ClassViewHolder(val binding: ItemClassCheckboxBinding) :
         RecyclerView.ViewHolder(binding.root)
 }
+

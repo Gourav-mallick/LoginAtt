@@ -312,13 +312,14 @@ class SelectInstituteActivity : AppCompatActivity() {
                         val classId = obj.optString("classIds")
                         val classShortName = obj.optString("classShortNames")
                         val mpId = obj.optString("mpId")
+                        val mpLongTitle = obj.optString("mpLongTitle")
                         val teacherId = obj.optString("teacherIds").replace(",", "").trim()
 
                         // Normalize data
                         subjectList.add(Subject(subjectId, subjectTitle))
                         courseList.add(Course(courseId, subjectId, courseTitle, courseTitle))
                        // classList.add(Class(classId, classShortName))
-                        coursePeriodList.add(CoursePeriod(cpId, courseId, classId, teacherId, mpId))
+                        coursePeriodList.add(CoursePeriod(cpId, courseId, classId, teacherId, mpId,mpLongTitle))
                     }
 
                     // Save all in DB

@@ -48,6 +48,7 @@
         <activity android:name=".view.SelectInstituteActivity" />
         <activity android:name=".view.AttendanceActivity" />
         <activity android:name=".view.ClassSelectActivity"/>
+        <activity android:name=".view.PeriodCourseSelectActivity"/>
 
 
 

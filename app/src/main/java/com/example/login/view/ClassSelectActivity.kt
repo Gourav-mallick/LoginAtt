@@ -1,5 +1,7 @@
 package com.example.login.view
 
+import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -13,8 +15,8 @@ class ClassSelectActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityClassSelectBinding
     private lateinit var db: AppDatabase
-    private val selectedClassIds = mutableListOf<String>()
     private lateinit var sessionId: String
+    private val selectedClassIds = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,13 +28,12 @@ class ClassSelectActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             val allClasses = db.classDao().getAllClasses()
-
-            // 🔹 Find which classes have attendance in this session
             val preSelected = db.attendanceDao().getDistinctClassIdsForCurrentSession(sessionId)
 
-            val adapter = ClassSelectAdapter(allClasses, preSelected) { selectedIds ->
-                selectedClassIds.clear()
-                selectedClassIds.addAll(selectedIds)
+            selectedClassIds.addAll(preSelected)
+
+            val adapter = ClassSelectAdapter(allClasses, preSelected) { classId, isChecked, wasPreSelected ->
+                handleClassSelectionChange(classId, isChecked, wasPreSelected)
             }
 
             binding.recyclerViewClasses.layoutManager = LinearLayoutManager(this@ClassSelectActivity)
@@ -46,19 +47,64 @@ class ClassSelectActivity : ComponentActivity() {
             }
 
             lifecycleScope.launch {
-                // 🔹 Remove attendance for unselected classes
-                db.attendanceDao().deleteAttendanceNotInClasses(selectedClassIds, sessionId)
+                // 🔹 Delete attendance of all unselected classes
+                db.attendanceDao().deleteAttendanceNotInClasses(selectedClassIds.toList(), sessionId)
 
-                Toast.makeText(this@ClassSelectActivity, "Classes updated", Toast.LENGTH_SHORT).show()
-/*
-                // 🔹 Navigate to next screen
+                // 🔹 Update session with selected class IDs
+                db.sessionDao().updateSessionClasses(sessionId, selectedClassIds.joinToString(","))
+
+                Toast.makeText(this@ClassSelectActivity, "Classes updated successfully", Toast.LENGTH_SHORT).show()
+
+                // 🔹 Navigate next
                 val intent = Intent(this@ClassSelectActivity, PeriodCourseSelectActivity::class.java)
                 intent.putExtra("SESSION_ID", sessionId)
                 intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClassIds))
                 startActivity(intent)
                 finish()
+            }
+        }
+    }
 
- */
+    private fun handleClassSelectionChange(classId: String, isChecked: Boolean, wasPreSelected: Boolean) {
+        lifecycleScope.launch {
+            if (!isChecked && wasPreSelected) {
+                // Class was preselected → warn teacher before removing
+                val students = db.attendanceDao().getStudentsForClassInSession(sessionId, classId)
+
+                if (students.isNotEmpty()) {
+                    val studentListText = students.joinToString("\n") { "${it.studentId} - ${it.studentName}" }
+
+                    runOnUiThread {
+                        AlertDialog.Builder(this@ClassSelectActivity)
+                            .setTitle("Remove Class")
+                            .setMessage(
+                                "These students belong to this class:\n\n$studentListText\n\n" +
+                                        "Their attendance will be deleted. Continue?"
+                            )
+                            .setPositiveButton("Yes") { _, _ ->
+                                lifecycleScope.launch {
+                                    db.attendanceDao().deleteAttendanceForClass(sessionId, classId)
+                                    selectedClassIds.remove(classId)
+                                    Toast.makeText(
+                                        this@ClassSelectActivity,
+                                        "Attendance removed for ${students.size} student(s)",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                            .setNegativeButton("No") { dialog, _ ->
+                                dialog.dismiss()
+                                selectedClassIds.add(classId) // keep it checked again
+                                recreate() // refresh UI
+                            }
+                            .show()
+                    }
+                } else {
+                    // no students found, just remove silently
+                    selectedClassIds.remove(classId)
+                }
+            } else if (isChecked) {
+                selectedClassIds.add(classId)
             }
         }
     }

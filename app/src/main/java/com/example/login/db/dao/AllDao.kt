@@ -10,8 +10,10 @@ import com.example.login.db.entity.Student
 import com.example.login.db.entity.Subject
 import com.example.login.db.entity.Teacher
 import com.example.login.db.entity.Class
+import com.example.login.db.entity.CourseFullInfo
 import com.example.login.db.entity.CoursePeriod
 import com.example.login.db.entity.Session
+
 
 @Dao
 interface StudentsDao {
@@ -101,6 +103,28 @@ interface CourseDao {
 
     @Query("SELECT * FROM courses")
     suspend fun getAllCourses(): List<Course>
+
+
+    // 🔹 Full joined course details
+    @Query("""
+        SELECT 
+            cp.cpId AS cpId,
+            c.courseId AS courseId,
+            c.courseTitle AS courseTitle,
+            c.courseShortName AS courseShortName,
+            s.subjectId AS subjectId,
+            s.subjectTitle AS subjectTitle,
+            cls.classShortName AS classShortName,
+            cp.mpId AS mpId,
+            cp.mpLongTitle AS mpLongTitle
+        FROM courses c
+        LEFT JOIN subjects s ON s.subjectId = c.subjectId
+        LEFT JOIN course_periods cp ON cp.courseId = c.courseId
+        LEFT JOIN classes cls ON cls.classId = cp.classId
+        WHERE c.courseId IN (:courseIds)
+    """)
+    suspend fun getCourseDetailsForIds(courseIds: List<String>): List<CourseFullInfo>
+
 }
 
 
@@ -149,6 +173,19 @@ interface SessionDao {
     // Optional: Get current session by ID
     @Query("SELECT * FROM sessions WHERE sessionId = :sessionId LIMIT 1")
     suspend fun getSessionById(sessionId: String): Session?
+
+
+    @Query("UPDATE sessions SET periodId = :periodId, subjectId = :subjectIds WHERE sessionId = :sessionId")
+    suspend fun updateSessionPeriodAndSubject(
+        sessionId: String,
+        periodId: String,
+        subjectIds: String
+    )
+
+    @Query("UPDATE sessions SET classId = :classIds WHERE sessionId = :sessionId")
+    suspend fun updateSessionClasses(sessionId: String, classIds: String)
+
+
 }
 
 
@@ -157,12 +194,65 @@ interface AttendanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAttendance(attendance: Attendance): Long
 
+    // Get all attendance records
+    @Query("SELECT * FROM attendance")
+    suspend fun getAllAttendance(): List<Attendance>
 
     @Query("SELECT DISTINCT classId FROM attendance WHERE sessionId = :sessionId")
     suspend fun getDistinctClassIdsForCurrentSession(sessionId: String): List<String>
+
+    @Query("SELECT * FROM attendance WHERE sessionId = :sessionId AND classId = :classId")
+    suspend fun getAttendancesForClass(sessionId: String, classId: String): List<Attendance>
+
+
+    @Query("DELETE FROM attendance WHERE sessionId = :sessionId AND classId = :classId")
+    suspend fun deleteAttendanceForClass(sessionId: String, classId: String)
+
 
     @Query("DELETE FROM attendance WHERE sessionId = :sessionId AND classId NOT IN (:selectedClassIds)")
     suspend fun deleteAttendanceNotInClasses(selectedClassIds: List<String>, sessionId: String)
 
 
+    @Query("SELECT * FROM attendance WHERE sessionId = :sessionId AND studentId = :studentId LIMIT 1")
+    suspend fun getAttendanceForStudentInSession(sessionId: String, studentId: String): Attendance?
+
+
+    @Query("""
+    SELECT s.* FROM attendance a
+    INNER JOIN students s ON a.studentId = s.studentId
+    WHERE a.sessionId = :sessionId AND a.classId = :classId
+""")
+    suspend fun getStudentsForClassInSession(sessionId: String, classId: String): List<Student>
+
+
+    @Query("""
+        UPDATE attendance
+        SET 
+            cpId = :cpId,
+            courseId = :courseId,
+            courseTitle = :courseTitle,
+            courseShortName = :courseShortName,
+            subjectId = :subjectId,
+            subjectTitle = :subjectTitle,
+            classShortName = :classShortName,
+            mpId = :mpId,
+            mpLongTitle = :mpLongTitle
+        WHERE sessionId = :sessionId
+    """)
+    suspend fun updateAttendanceWithCourseDetails(
+        sessionId: String,
+        cpId: String?,
+        courseId: String?,
+        courseTitle: String?,
+        courseShortName: String?,
+        subjectId: String?,
+        subjectTitle: String?,
+        classShortName: String?,
+        mpId: String?,
+        mpLongTitle: String?
+    )
+
+
 }
+
+
