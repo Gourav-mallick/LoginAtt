@@ -17,9 +17,9 @@ class TeacherScanFragment : Fragment() {
 
 
     companion object {
-        private const val ARG_CLASSROOM = "arg_classroom"
-        fun newInstance(classroomName: String) = TeacherScanFragment().apply {
-            arguments = Bundle().apply { putString(ARG_CLASSROOM, classroomName) }
+        private const val ARG_CLASSID  = "arg_classid"
+        fun newInstance(classId: String) = TeacherScanFragment().apply {
+            arguments = Bundle().apply { putString(ARG_CLASSID , classId) }
         }
     }
 
@@ -35,8 +35,8 @@ class TeacherScanFragment : Fragment() {
 
       //  tvHeader.text = "Tap Staff card to continue..."
        // tvSyncStatus.text = "Sync Status : Please sync device."
-        val classroomName = arguments?.getString(ARG_CLASSROOM) ?: "-"
-        tvClassCard.text = "Class Card  $classroomName"
+        val classId = arguments?.getString(ARG_CLASSID ) ?: "-"
+        tvClassCard.text = "Class  $classId"
       //  tvTeacher.text = "Teacher: - (Scan Teacher Card)"
     }
 /*

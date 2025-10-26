@@ -29,6 +29,8 @@ interface StudentsDao {
     @Query("SELECT * FROM students ")
     suspend fun getAllStudents(): List<Student>
 
+    @Query("SELECT * FROM students WHERE classId = :classId")
+    suspend fun getStudentsByClass(classId: String): List<Student>
 
     @Query("""
     SELECT * FROM students 
@@ -253,6 +255,9 @@ interface AttendanceDao {
     )
 
 
+
 }
+
+
 
 

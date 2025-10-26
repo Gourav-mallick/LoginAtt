@@ -34,7 +34,6 @@ class LoginActivity : AppCompatActivity() {
         val btnLogin = findViewById<Button>(R.id.btnLogin)
 
 
-
         // 🔹 Autofill saved login details if available
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
         edtUrl.setText(prefs.getString("baseUrl", ""))
@@ -48,13 +47,12 @@ class LoginActivity : AppCompatActivity() {
 
             //  Check network connectivity first
 
-            /*
             if (!CheckNetworkAndInternetUtils.isNetworkAvailable(this)) {
                 Toast.makeText(this, "No network connection. Please check your network.", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-             */
+
 
             if (baseUrl.isBlank() || username.isBlank() || password.isBlank()) {
                 Toast.makeText(this, "Please fill all fields", Toast.LENGTH_LONG).show()
@@ -85,7 +83,6 @@ class LoginActivity : AppCompatActivity() {
 
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-/*
                     val hasInternet = withContext(Dispatchers.IO) { CheckNetworkAndInternetUtils.hasInternetAccess() }
                     if (!hasInternet) {
                         Toast.makeText(
@@ -97,7 +94,8 @@ class LoginActivity : AppCompatActivity() {
                     }
 
 
- */
+
+
                     val retrofit = ApiClient.getClient(baseUrl, HASH) // Pass hash for header
                     val service = retrofit.create(ApiService::class.java)
 
@@ -190,6 +188,7 @@ class LoginActivity : AppCompatActivity() {
                                         .putString("baseUrl", baseUrl)
                                         .putString("username", username)
                                         .putString("password", password)
+
                                         .apply()
 
                                     // Navigate to SelectInstituteActivity with schoolIds and schoolShortNames

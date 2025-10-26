@@ -32,6 +32,7 @@ import java.util.*
 import android.os.Build
 import android.provider.Settings
 import com.example.login.R
+import com.example.login.utility.CheckNetworkAndInternetUtils
 import com.example.login.utility.TripleDESUtility
 
 
@@ -64,8 +65,8 @@ class SelectInstituteActivity : AppCompatActivity() {
         val baseUrl = prefs.getString("baseUrl", "") ?: ""
 
         // 🔹 Autofill saved credentials
-        edtUsername.setText(savedUsername)
-        edtPassword.setText(savedPassword)
+       // edtUsername.setText(savedUsername)
+      //  edtPassword.setText(savedPassword)
 
         // 🔹 Get data from intent
         val schoolIds = intent.getStringArrayListExtra("schoolIds") ?: arrayListOf()
@@ -94,22 +95,31 @@ class SelectInstituteActivity : AppCompatActivity() {
             val enteredUser = edtUsername.text.toString().trim()
             val enteredPass = edtPassword.text.toString().trim()
 
+            // ✅ NEW: Check network connectivity first
+            if (!CheckNetworkAndInternetUtils.isNetworkAvailable(this)) {
+                showToast("No network connection. Please check your network.")
+                return@setOnClickListener
+            }
+
             // 🔸 Validate fields
             if (enteredUser.isEmpty() || enteredPass.isEmpty()) {
-                Toast.makeText(this, "Please enter username and password", Toast.LENGTH_SHORT).show()
+                showToast("Please enter username and password")
                 return@setOnClickListener
             }
 
             if (selectedInstitutes.isEmpty()) {
-                Toast.makeText(this, "Please select at least one institute", Toast.LENGTH_SHORT).show()
+                showToast("Please select at least one institute")
                 return@setOnClickListener
             }
 
             // 🔸 Validate with SharedPreferences
             if (enteredUser != savedUsername || enteredPass != savedPassword) {
-                Toast.makeText(this, "Invalid username or password", Toast.LENGTH_SHORT).show()
+                showToast("Invalid username or password")
                 return@setOnClickListener
             }
+
+            //  Save selected institute IDs to SharedPreferences
+            val instIds = selectedInstitutes.joinToString(",")
 
 
             // Normalize baseUrl with triple slashes
@@ -120,7 +130,6 @@ class SelectInstituteActivity : AppCompatActivity() {
             }
 
             // 🔹 Build query data
-            val instIds = selectedInstitutes.joinToString(",")
             val rParam = "api/v1/StudentEnrollment/GetStudList"
             val dataParam = "{\"studListParamData\":{\"actionType\":\"FingerPrint\",\"school_id\":\"$instIds\"}}"
 
@@ -133,43 +142,61 @@ class SelectInstituteActivity : AppCompatActivity() {
 
 
 
-
-
-
-
-
 // Inside your btnSync.setOnClickListener -> lifecycleScope.launch(Dispatchers.IO)
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
+
+                    val hasInternet = CheckNetworkAndInternetUtils.hasInternetAccess()
+                    if (!hasInternet) {
+                        withContext(Dispatchers.Main) {
+                            progressBar.visibility = ProgressBar.GONE
+                            btnSync.isEnabled = true
+                            showToast("No internet access. Please check your connection.")
+                        }
+                        return@launch
+                    }
                     val retrofit = ApiClient.getClient(normalizedBaseUrl, HASH)
                     val apiService = retrofit.create(ApiService::class.java)
                     val db = AppDatabase.getDatabase(this@SelectInstituteActivity)
 
                     // Call multiple APIs sequentially
-                    fetchAndSaveStudents(apiService, db, normalizedBaseUrl, instIds)
-                    fetchAndSaveTeachers(apiService, db, normalizedBaseUrl, instIds)
-                    syncSubjectInstances(apiService, db, normalizedBaseUrl, instIds)
-                    fetchDeviceDataToServer(apiService, db, normalizedBaseUrl, instIds)
+                    // Track success of all steps
+                    val studentsDataFatchOk = fetchAndSaveStudents(apiService, db, normalizedBaseUrl, instIds)
+                    val teachersDataFatchOk = fetchAndSaveTeachers(apiService, db, normalizedBaseUrl, instIds)
+                    val subjectsDataFatchOk = syncSubjectInstances(apiService, db, normalizedBaseUrl, instIds)
+                    val deviceDataFatchOk = fetchDeviceDataToServer(apiService, db, normalizedBaseUrl, instIds)
                     Log.d(TAG, "All data synced and device config stored locally.")
 
-
+                    val allApiCallOk = studentsDataFatchOk && teachersDataFatchOk && subjectsDataFatchOk && deviceDataFatchOk
 
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = ProgressBar.GONE
                         btnSync.isEnabled = true
-                        Toast.makeText(this@SelectInstituteActivity, "Sync completed successfully!", Toast.LENGTH_LONG).show()
 
-                        val intent= Intent(this@SelectInstituteActivity, AttendanceActivity::class.java)
-                        startActivity(intent)
-                        finish()
+
+                        if(allApiCallOk){
+
+                            prefs.edit()
+                                .putString("selectedInstituteIds", instIds)
+                                .apply()
+                            Log.d(TAG, "Saved selected institutes: $instIds")
+
+                            showToast("Sync completed successfully!")
+
+                            // Navigate to AttendanceActivity
+                            val intent= Intent(this@SelectInstituteActivity, AttendanceActivity::class.java)
+                            startActivity(intent)
+                            finish()
+                        }else{
+                            showToast("Partial sync detected. Please try again.")
+                        }
                     }
-
 
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = ProgressBar.GONE
                         btnSync.isEnabled = true
-                        Toast.makeText(this@SelectInstituteActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                        showToast("Error: ${e.message}")
                     }
                     Log.e(TAG, "SYNC_EXCEPTION: ${e.message}", e)
                 }
@@ -177,6 +204,12 @@ class SelectInstituteActivity : AppCompatActivity() {
         }
     }
 
+    // ✅  Safe toast helper that works from any thread
+    private fun showToast(message: String) {
+        runOnUiThread {
+            Toast.makeText(this@SelectInstituteActivity, message, Toast.LENGTH_LONG).show()
+        }
+    }
 
     // get students and save to db
     private suspend fun fetchAndSaveStudents(
@@ -184,7 +217,7 @@ class SelectInstituteActivity : AppCompatActivity() {
         db: AppDatabase,
         baseUrl: String,
         instIds: String
-    ) {
+    ) :Boolean  {
         val rParam = "api/v1/StudentEnrollment/GetStudList"
         val dataParam = "{\"studListParamData\":{\"actionType\":\"FingerPrint\",\"school_id\":\"$instIds\"}}"
 
@@ -213,8 +246,10 @@ class SelectInstituteActivity : AppCompatActivity() {
             db.classDao().insertAll(classList)
             Log.d(TAG, "Inserted ${studentsList} students.")
             Log.d(TAG, "Inserted ${classList} classes.")
+            return true
         } else {
             Log.e(TAG, "STUDENT_API_FAILED: ${response.errorBody()?.string()}")
+            return false
         }
     }
 
@@ -227,7 +262,7 @@ class SelectInstituteActivity : AppCompatActivity() {
         db: AppDatabase,
         normalizedBaseUrl: String,
         instIds: String
-    ) {
+    ) :Boolean  {
         val rParam = "api/v1/User/GetUserRegisteredDetails"
         val dataParam = "{\"userRegParamData\":{\"userType\":\"staff\",\"registrationType\":\"FingerPrint\",\"school_id\":\"$instIds\"}}"
 
@@ -258,8 +293,10 @@ class SelectInstituteActivity : AppCompatActivity() {
             }
             db.teachersDao().insertAll(teachersList)
             Log.d(TAG, "Inserted teachers ${teachersList} .")
+            return true
         } else {
             Log.e(TAG, "TEACHER_API_FAILED: ${response.errorBody()?.string()}")
+            return false
         }
     }
 
@@ -271,7 +308,7 @@ class SelectInstituteActivity : AppCompatActivity() {
          db: AppDatabase,
         normalizedBaseUrl: String,
         instIds: String
-    ) {
+    ) :Boolean  {
         val rParam = "api/v1/CoursePeriod/SubjectInstances"
         val dataParam = "{\"cpParamData\":{\"actionType\":\"markCpAttendance2\"}}"
 
@@ -292,7 +329,8 @@ class SelectInstituteActivity : AppCompatActivity() {
 
                     if (dataArray == null || dataArray.length() == 0) {
                         Log.w(TAG, "No subject instance data found.")
-                        return
+                        Toast.makeText(this@SelectInstituteActivity, "No subject instance data found.", Toast.LENGTH_LONG).show()
+                        return false
                     }
 
 
@@ -333,8 +371,10 @@ class SelectInstituteActivity : AppCompatActivity() {
                     Log.d(TAG, "DB_INSERT_Subjects: ${subjectList} records saved")
                     Log.d(TAG, "DB_INSERT_course: ${courseList} records saved")
                   //  Log.d(TAG, "DB_INSERT_class: ${classList} records saved")
+                    return true
         } else {
                     Log.e(TAG, "API Error: ${response.errorBody()?.string()}")
+                    return false
         }
 
 
@@ -347,7 +387,7 @@ class SelectInstituteActivity : AppCompatActivity() {
         db: AppDatabase,
         normalizedBaseUrl: String,
         instIds: String
-    ) {
+    ):Boolean {
         val rParam = "api/v1/Hardware/DeviceUtilityMgmt"
         val dataParam = getDeviceUtilityQueryParams(this)
 
@@ -408,10 +448,12 @@ class SelectInstituteActivity : AppCompatActivity() {
             } else {
                 Log.e(TAG, "No hwMgmtData found in response!")
             }
+            return true
         }
             else {
             Log.e(TAG, "STUDENT_API_FAILED: ${response.errorBody()?.string()}")
-        }
+             return false
+            }
     }
 
 

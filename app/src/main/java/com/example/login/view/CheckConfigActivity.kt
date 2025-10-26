@@ -41,26 +41,29 @@ class CheckConfigActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
         val baseUrl = prefs.getString("baseUrl", null)
         val username = prefs.getString("username", null)
-       // val instituteId = prefs.getString("institute_id", null) //&& !instituteId.isNullOrEmpty()
+        val password = prefs.getString("password", null)
+        val instituteId = prefs.getString("selectedInstituteIds", null) //&& !instituteId.isNullOrEmpty()
 
-        if (!baseUrl.isNullOrEmpty() && !username.isNullOrEmpty() ) {
-            //  All config exists → go to AttendanceActivity
-            statusText.text = "Configuration found! Redirecting..."
-            progressBar.visibility = View.VISIBLE
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                startActivity(Intent(this, AttendanceActivity::class.java))
-                finish()
-            }, 1000)
-        } else {
-            // Missing config → go to LoginActivity
-            statusText.text = "Configuration missing. Redirecting to Login..."
-            progressBar.visibility = View.VISIBLE
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                startActivity(Intent(this, LoginActivity::class.java))
-                finish()
-            }, 1500)
+        when {
+            // All steps done: go to Attendance
+            !baseUrl.isNullOrEmpty() && !username.isNullOrEmpty() &&
+                    !password.isNullOrEmpty() && !instituteId.isNullOrEmpty() -> {
+                statusText.text = "Configuration found! Redirecting..."
+                progressBar.visibility = View.VISIBLE
+                Handler(Looper.getMainLooper()).postDelayed({
+                    startActivity(Intent(this, AttendanceActivity::class.java))
+                    finish()
+                }, 1000)
+            }
+            // Else: go to Login
+            else -> {
+                statusText.text = "Configuration missing. Redirecting to Login..."
+                progressBar.visibility = View.VISIBLE
+                Handler(Looper.getMainLooper()).postDelayed({
+                    startActivity(Intent(this, LoginActivity::class.java))
+                    finish()
+                }, 1500)
+            }
         }
     }
 }

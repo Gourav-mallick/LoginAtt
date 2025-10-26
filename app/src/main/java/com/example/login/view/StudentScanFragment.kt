@@ -60,9 +60,7 @@ class StudentScanFragment : Fragment() {
         presentCount++
         tvPresentCount.text = "Present Students: $presentCount"
         tvLastStudent.text = " ${student.studentName} - Present"
-
-
-
+        updateInstruction("Tap student card / Other Card")
         return true
     }
 

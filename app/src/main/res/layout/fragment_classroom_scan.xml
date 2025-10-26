@@ -52,7 +52,8 @@
             android:background="@android:color/transparent"
             android:padding="8dp"
             android:contentDescription="refresh"
-            android:src="@android:drawable/ic_popup_sync" />
+            android:src="@android:drawable/ic_popup_sync"
+            app:tint="#2E7DFF"/>
     </LinearLayout>
 
     <!-- Center Instruction -->

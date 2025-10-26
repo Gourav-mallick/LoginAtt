@@ -1,6 +1,7 @@
 package com.example.login.view
 
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.ArrayAdapter
@@ -126,7 +127,17 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                 )
 
                 Toast.makeText(this@PeriodCourseSelectActivity, "Manual course added successfully", Toast.LENGTH_SHORT).show()
-                return@launch
+
+                val intent =
+                    Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
+                intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
+                intent.putExtra("SESSION_ID", sessionId)
+                startActivity(intent)
+                finish()
+
+
+
+
             }
 
             val isMultiCourse = selectedCourseIds.size > 1
@@ -134,12 +145,12 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
             try {
                 when {
-                    // ✅ CASE 1 / 2C — No course selected → Manual subject instance
+                    //  CASE 1 / 2C — No course selected → Manual subject instance
                     isNoCourse -> {
                         Toast.makeText(this@PeriodCourseSelectActivity, "Please select or add a course", Toast.LENGTH_SHORT).show()
                     }
 
-                    // ✅ CASE 1B / 2B — Multiple courses selected
+                    //  CASE 1B / 2B — Multiple courses selected
                     isMultiCourse -> {
                         val courseDetails = db.courseDao().getCourseDetailsForIds(selectedCourseIds)
 
@@ -189,7 +200,18 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         )
 
 
-                        Toast.makeText(this@PeriodCourseSelectActivity, "Multiple courses applied successfully", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@PeriodCourseSelectActivity, "Maltiple course added successfully", Toast.LENGTH_SHORT).show()
+
+                        val intent = Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
+                        intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
+                        intent.putExtra("SESSION_ID", sessionId)
+                        startActivity(intent)
+                        finish()
+
+
+
+
+
                     }
 
                     // CASE 1A / 2A — Single course selected
@@ -232,7 +254,15 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         )
 
 
-                        Toast.makeText(this@PeriodCourseSelectActivity, "Single course applied successfully", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@PeriodCourseSelectActivity, "single course attendance added successfully", Toast.LENGTH_SHORT).show()
+
+                        val intent = Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
+                        intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
+                        intent.putExtra("SESSION_ID", sessionId)
+                        startActivity(intent)
+                        finish()
+
+
                     }
                 }
 
