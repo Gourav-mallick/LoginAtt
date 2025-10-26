@@ -1,9 +1,11 @@
 package com.example.login.db.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.example.login.db.entity.ActiveClassCycle
 import com.example.login.db.entity.Attendance
 import com.example.login.db.entity.Course
 import com.example.login.db.entity.Student
@@ -260,4 +262,17 @@ interface AttendanceDao {
 
 
 
+@Dao
+interface ActiveClassCycleDao {
+    @Query("SELECT * FROM ActiveClassCycle")
+    suspend fun getAll(): List<ActiveClassCycle>
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(cycle: ActiveClassCycle)
+
+    @Delete
+    suspend fun delete(cycle: ActiveClassCycle)
+
+    @Query("DELETE FROM ActiveClassCycle WHERE classroomId = :classroomId")
+    suspend fun deleteByClassroomId(classroomId: String)
+}

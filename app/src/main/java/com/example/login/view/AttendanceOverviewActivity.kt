@@ -43,9 +43,6 @@ class AttendanceOverviewActivity : ComponentActivity() {
                     attendance.any { it.studentId == s.studentId && it.status == "P" }
                 }.map { it.studentName }
 
-                val absentStudents = students.filter { s ->
-                    attendance.none { it.studentId == s.studentId && it.status == "P" }
-                }.map { it.studentName }
 
 
                 classSummaries.add(
@@ -55,7 +52,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
                         presentCount = presentCount,
                         absentCount = absentCount,
                         presentStudents = presentStudents,
-                        absentStudents = absentStudents
+
                     )
                 )
             }
@@ -76,5 +73,4 @@ data class ClassOverviewData(
     val presentCount: Int,
     val absentCount: Int,
     val presentStudents: List<String>,
-    val absentStudents: List<String>
 )

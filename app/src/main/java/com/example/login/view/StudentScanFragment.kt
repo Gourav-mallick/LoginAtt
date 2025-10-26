@@ -50,6 +50,7 @@ class StudentScanFragment : Fragment() {
         updatePresentCount()
     }
 
+
     /**
      * Call this method when a student card is scanned.
      * Logic same as before: increment count, update last scanned, update instruction

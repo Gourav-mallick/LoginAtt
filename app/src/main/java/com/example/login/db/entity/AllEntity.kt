@@ -125,3 +125,15 @@ data class CourseFullInfo(
 )
 
 
+@Entity(tableName = "ActiveClassCycle")
+data class ActiveClassCycle(
+    @PrimaryKey val classroomId: String,
+    val classroomName: String,
+    val teacherId: String?,
+    val teacherName: String?,
+    val sessionId: String?,
+    val startedAtMillis: Long
+    // Add presentCount or other fields if needed
+)
+
+

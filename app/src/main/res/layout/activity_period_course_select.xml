@@ -1,55 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:padding="16dp">
 
     <TextView
+        android:id="@+id/tvSelectPeriod"
         android:text="Select Period"
         android:textStyle="bold"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"/>
 
     <Spinner
         android:id="@+id/spinnerPeriod"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:spinnerMode="dropdown" />
+        android:spinnerMode="dropdown"
+        app:layout_constraintTop_toBottomOf="@id/tvSelectPeriod"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"/>
 
     <TextView
+        android:id="@+id/tvSelectCourses"
         android:text="Select Course(s)"
         android:textStyle="bold"
-        android:layout_marginTop="12dp"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/spinnerPeriod"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="16dp"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewCourses"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="50dp"
+        app:layout_constraintBottom_toTopOf="@id/checkboxAddManualCourse"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.52"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvSelectCourses" />
 
-    <!-- Checkbox to enable manual entry -->
     <CheckBox
         android:id="@+id/checkboxAddManualCourse"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add manual course if not in list" />
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="20dp"
+        android:text="Add manual course if not in list"
+        app:layout_constraintBottom_toTopOf="@id/inputManualCourseTitle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/recyclerViewCourses" />
 
-    <!-- Manual course title input -->
     <EditText
         android:id="@+id/inputManualCourseTitle"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:hint="Enter course/subject name manually"
         android:visibility="gone"
-        android:inputType="textCapWords" />
+        android:inputType="textCapWords"
+        app:layout_constraintTop_toBottomOf="@id/checkboxAddManualCourse"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/btnContinue"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="8dp" />
 
     <Button
         android:id="@+id/btnContinue"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Continue" />
-</LinearLayout>
+        android:text="Continue"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

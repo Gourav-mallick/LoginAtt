@@ -12,6 +12,7 @@ import com.example.login.db.entity.Subject
 import com.example.login.db.entity.Class
 import com.example.login.db.entity.CoursePeriod
 import com.example.login.db.entity.Session
+import com.example.login.db.entity.ActiveClassCycle
 
 
 
@@ -24,7 +25,8 @@ import com.example.login.db.entity.Session
     Class::class,
     CoursePeriod::class,
     Session::class,
-    Attendance::class
+    Attendance::class,
+    ActiveClassCycle::class
     ],
     version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
@@ -37,7 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun coursePeriodDao(): CoursePeriodDao
     abstract fun sessionDao(): SessionDao
     abstract fun attendanceDao(): AttendanceDao
-
+    abstract fun activeClassCycleDao(): ActiveClassCycleDao
 
     companion object {
         @Volatile

@@ -47,7 +47,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
     // 🔹 Predefined period dropdown (later can be dynamic)
     private fun setupPeriodDropdown() {
-        val periodList = listOf("1", "2", "3", "4", "5", "6") // TODO: Replace with DB data
+        val periodList = listOf("1", "2", "3", "4", "5", "6")
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, periodList)
         binding.spinnerPeriod.adapter = adapter
     }
@@ -113,19 +113,6 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
                 db.sessionDao().updateSessionPeriodAndSubject(sessionId, selectedPeriod, dummyCourseId)
 
-                markAbsenteesForAllClasses(
-                    db = db,
-                    cpId = dummyCpId,
-                    courseId = dummyCourseId,
-                    courseTitle = manualCourseName,
-                    courseShortName = manualCourseName.take(6).uppercase(),
-                    subjectId = dummySubjectId,
-                    subjectTitle = manualCourseName,
-                    classShortName = selectedClasses.joinToString(","),
-                    mpId = "${System.currentTimeMillis()}",
-                    mpLongTitle = "Manual Added"
-                )
-
                 Toast.makeText(this@PeriodCourseSelectActivity, "Manual course added successfully", Toast.LENGTH_SHORT).show()
 
                 val intent =
@@ -186,18 +173,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         }
 
                         db.sessionDao().updateSessionPeriodAndSubject(sessionId, selectedPeriod, combinedCourseIds)
-                        markAbsenteesForAllClasses(
-                            db = db,
-                            cpId = combinedCpIds,
-                            courseId = combinedCourseIds,
-                            courseTitle = combinedCourseTitles,
-                            courseShortName = combinedCourseShortNames,
-                            subjectId = combinedSubjectIds,
-                            subjectTitle = combinedSubjectTitles,
-                            classShortName = combinedClassShortNames,
-                            mpId = combinedMpIds,
-                            mpLongTitle = combinedMpLongTitles
-                        )
+
 
 
                         Toast.makeText(this@PeriodCourseSelectActivity, "Maltiple course added successfully", Toast.LENGTH_SHORT).show()
@@ -207,9 +183,6 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         intent.putExtra("SESSION_ID", sessionId)
                         startActivity(intent)
                         finish()
-
-
-
 
 
                     }
@@ -240,19 +213,6 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         }
 
                         db.sessionDao().updateSessionPeriodAndSubject(sessionId, selectedPeriod, courseId)
-                        markAbsenteesForAllClasses(
-                            db = db,
-                            cpId = courseDetails.cpId,
-                            courseId = courseDetails.courseId,
-                            courseTitle = courseDetails.courseTitle,
-                            courseShortName = courseDetails.courseShortName,
-                            subjectId = courseDetails.subjectId,
-                            subjectTitle = courseDetails.subjectTitle,
-                            classShortName = courseDetails.classShortName,
-                            mpId = courseDetails.mpId,
-                            mpLongTitle = courseDetails.mpLongTitle
-                        )
-
 
                         Toast.makeText(this@PeriodCourseSelectActivity, "single course attendance added successfully", Toast.LENGTH_SHORT).show()
 
@@ -283,54 +243,5 @@ class PeriodCourseSelectActivity : ComponentActivity() {
     }
 
 
-//Handle Absent Student Attandance
-// ✅ Handle Absent Student Attendance with correct course info
-private suspend fun markAbsenteesForAllClasses(
-    db: AppDatabase,
-    cpId: String? = null,
-    courseId: String? = null,
-    courseTitle: String? = null,
-    courseShortName: String? = null,
-    subjectId: String? = null,
-    subjectTitle: String? = null,
-    classShortName: String? = null,
-    mpId: String? = null,
-    mpLongTitle: String? = null
-) {
-    for (classId in selectedClasses) {
-        val allStudents = db.studentsDao().getAllStudents().filter { it.classId == classId }
-        val presentRecords = db.attendanceDao().getAttendancesForClass(sessionId, classId)
-        val presentStudentIds = presentRecords.map { it.studentId }
-        val absentStudents = allStudents.filterNot { it.studentId in presentStudentIds }
-
-        for (student in absentStudents) {
-            val absentRecord = com.example.login.db.entity.Attendance(
-                atteId = java.util.UUID.randomUUID().toString(),
-                sessionId = sessionId,
-                studentId = student.studentId,
-                classId = classId,
-                status = "A", // Absent
-                markedAt = java.text.SimpleDateFormat(
-                    "yyyy-MM-dd'T'HH:mm:ss",
-                    java.util.Locale.getDefault()
-                ).format(java.util.Date()),
-                syncStatus = "pending",
-                instId = student.instId,
-                cpId = cpId,
-                courseId = courseId,
-                courseTitle = courseTitle,
-                courseShortName = courseShortName,
-                subjectId = subjectId,
-                subjectTitle = subjectTitle,
-                classShortName = classShortName,
-                mpId = mpId,
-                mpLongTitle = mpLongTitle
-            )
-            db.attendanceDao().insertAttendance(absentRecord)
-        }
-
-        Log.d("ABSENT_MARK", "Class $classId → ${absentStudents.size} absentees marked with course data.")
-    }
-}
 
 }
