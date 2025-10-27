@@ -1,5 +1,6 @@
 package com.example.login.view
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -26,6 +27,12 @@ class AttendanceOverviewActivity : ComponentActivity() {
         sessionId = intent.getStringExtra("SESSION_ID") ?: ""
 
         loadOverviewData()
+
+        binding.btnSubmitAttendance.setOnClickListener {
+            val intent = Intent(this, AttendanceActivity::class.java)
+            startActivity(intent)
+            finish()
+        }
     }
 
     private fun loadOverviewData() {
@@ -39,10 +46,12 @@ class AttendanceOverviewActivity : ComponentActivity() {
                 val totalStudents = students.size
                 val presentCount = attendance.count { it.status == "P" }
                 val absentCount = totalStudents - presentCount
+          /*
                 val presentStudents = students.filter { s ->
                     attendance.any { it.studentId == s.studentId && it.status == "P" }
                 }.map { it.studentName }
 
+           */
 
 
                 classSummaries.add(
@@ -51,7 +60,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
                         totalStudents = totalStudents,
                         presentCount = presentCount,
                         absentCount = absentCount,
-                        presentStudents = presentStudents,
+                     //   presentStudents = presentStudents,
 
                     )
                 )
@@ -72,5 +81,5 @@ data class ClassOverviewData(
     val totalStudents: Int,
     val presentCount: Int,
     val absentCount: Int,
-    val presentStudents: List<String>,
+  //  val presentStudents: List<String>,
 )
