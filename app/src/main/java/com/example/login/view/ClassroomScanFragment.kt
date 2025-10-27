@@ -1,6 +1,7 @@
 package com.example.login.view
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -47,6 +48,8 @@ class ClassroomScanFragment : Fragment() {
                 .setPositiveButton("Yes") { _, _ ->
                     // Step 2: Show username/password popup
         //            showDialogBoxForEnterCredential()
+                    showDialogBoxForCredentials()
+
 
                 }
                 .setNegativeButton("No", null)
@@ -55,8 +58,9 @@ class ClassroomScanFragment : Fragment() {
 
     }
 
-/*
-    private fun showDialogBoxForEnterCredential() {
+
+    // 🔹 Popup for entering username & password
+    private fun showDialogBoxForCredentials() {
         val dialogView = layoutInflater.inflate(R.layout.validate_for_sync_data_to_server, null)
         val edtUserName = dialogView.findViewById<EditText>(R.id.edtUserName)
         val edtPassword = dialogView.findViewById<EditText>(R.id.edtPassword)
@@ -65,14 +69,28 @@ class ClassroomScanFragment : Fragment() {
 
         val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogView)
-            .setCancelable(false)  // prevent outside touch to dismiss
+            .setCancelable(false)
             .create()
 
         btnSubmit.setOnClickListener {
             val username = edtUserName.text.toString().trim()
             val password = edtPassword.text.toString().trim()
-   //         validateUserCredentialForSynData(username, password)
-            dialog.dismiss() // dismiss only after valid submission
+
+            if (username.isEmpty() || password.isEmpty()) {
+                Toast.makeText(requireContext(), "Please enter both fields", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (validateUserCredentials(username, password)) {
+                dialog.dismiss()
+                Toast.makeText(requireContext(), "Credentials verified!", Toast.LENGTH_SHORT).show()
+
+                // ✅ Navigate to SyncActivity
+                val intent = Intent(requireContext(), SyncAttendanceToServer::class.java)
+                startActivity(intent)
+            } else {
+                Toast.makeText(requireContext(), "Invalid username or password", Toast.LENGTH_SHORT).show()
+            }
         }
 
         btnCancel.setOnClickListener {
@@ -82,39 +100,14 @@ class ClassroomScanFragment : Fragment() {
         dialog.show()
     }
 
-    private fun validateUserCredentialForSynData(username: String, password: String) {
-        val prefs = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val savedUsername = prefs.getString("username", "") ?: ""
-        val savedPassword = prefs.getString("password", "") ?: ""
+    // 🔹 Simple validation function using SharedPreferences
+    private fun validateUserCredentials(username: String, password: String): Boolean {
+        val prefs = requireContext().getSharedPreferences("LoginPrefs", Context.MODE_PRIVATE)
+        val savedUsername = prefs.getString("username", "abc") // default username for test
+        val savedPassword = prefs.getString("password", "1234")  // default password for test
 
-        if (username == savedUsername && password == savedPassword) {
-            Toast.makeText(requireContext(), "Credentials correct! Syncing...", Toast.LENGTH_SHORT)
-                .show()
-
-            // Perform sync
-            viewLifecycleOwner.lifecycleScope.launch {
-                try {
-                    DataSyncToServer.syncDataToServer(requireContext())
-                    Toast.makeText(
-                        requireContext(),
-                        "Sync completed successfully",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } catch (e: Exception) {
-                    Toast.makeText(requireContext(), "Sync failed: ${e.message}", Toast.LENGTH_LONG)
-                        .show()
-                }
-            }
-        } else {
-            Toast.makeText(requireContext(), "Incorrect username or password.", Toast.LENGTH_SHORT)
-                .show()
-        }
+        return username == savedUsername && password == savedPassword
     }
-
-
-
- */
-
 
 }
 

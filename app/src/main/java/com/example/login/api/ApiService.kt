@@ -3,9 +3,12 @@
 
 package com.example.login.api
 
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Query
 
 data class ApiResponse(
@@ -142,5 +145,11 @@ interface ApiService {
         @Query("data") data: String
     ): Response<ResponseBody>
 
+
+    @POST("sims-services/digitalsims/")
+    suspend fun postAttendanceSync(
+        @Query("r") r: String = "api/v1/Att/ManageMarkingGlobalAtt",
+        @Body requestBody: RequestBody
+    ): Response<ResponseBody>
 
 }

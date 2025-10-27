@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layoutSyncRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="@android:color/white">
+
+    <TextView
+        android:id="@+id/tvSyncTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Attendance Sync"
+        android:textStyle="bold"
+        android:textSize="22sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/tvSyncStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Press the button to sync pending attendance"
+        android:textSize="16sp"
+        android:textColor="#555555"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <ProgressBar
+        android:id="@+id/progressSync"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:visibility="gone"
+        android:indeterminate="true"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnSyncNow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sync Now"
+        android:paddingHorizontal="32dp"
+        android:paddingVertical="12dp"
+        android:backgroundTint="@color/purple_500"
+        android:textColor="@android:color/white"
+        android:textAllCaps="false"
+        android:textSize="16sp" />
+
+</LinearLayout>

@@ -209,6 +209,9 @@ interface AttendanceDao {
     suspend fun getAttendancesForClass(sessionId: String, classId: String): List<Attendance>
 
 
+    @Query("UPDATE attendance SET endTime = :endTime WHERE sessionId = :sessionId")
+    suspend fun updateAttendanceEndTime(sessionId: String,  endTime: String)
+
     @Query("DELETE FROM attendance WHERE sessionId = :sessionId AND classId = :classId")
     suspend fun deleteAttendanceForClass(sessionId: String, classId: String)
 
@@ -240,7 +243,8 @@ interface AttendanceDao {
             subjectTitle = :subjectTitle,
             classShortName = :classShortName,
             mpId = :mpId,
-            mpLongTitle = :mpLongTitle
+            mpLongTitle = :mpLongTitle,
+            period=:period
         WHERE sessionId = :sessionId
     """)
     suspend fun updateAttendanceWithCourseDetails(
@@ -253,8 +257,16 @@ interface AttendanceDao {
         subjectTitle: String?,
         classShortName: String?,
         mpId: String?,
-        mpLongTitle: String?
+        mpLongTitle: String?,
+        period: String?
     )
+
+
+    @Query("SELECT * FROM attendance WHERE syncStatus = 'pending'")
+    suspend fun getPendingAttendances(): List<Attendance>
+
+    @Query("UPDATE attendance SET syncStatus = :newStatus WHERE atteId = :atteId")
+    suspend fun updateSyncStatus(atteId: String, newStatus: String)
 
 
 

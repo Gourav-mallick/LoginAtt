@@ -75,6 +75,8 @@ class PeriodCourseSelectActivity : ComponentActivity() {
             return
         }
 
+
+
         val isManual = binding.checkboxAddManualCourse.isChecked
         val manualCourseName = binding.inputManualCourseTitle.text.toString().trim()
 
@@ -107,7 +109,8 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         subjectTitle = manualCourseName,
                         classShortName = classId,
                         mpId = "${System.currentTimeMillis()}",
-                        mpLongTitle = "Manual Added"
+                        mpLongTitle = "Manual Added",
+                        period = selectedPeriod
                     )
                 }
 
@@ -168,7 +171,8 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                                 subjectTitle = combinedSubjectTitles,
                                 classShortName = combinedClassShortNames,
                                 mpId = combinedMpIds,
-                                mpLongTitle = combinedMpLongTitles
+                                mpLongTitle = combinedMpLongTitles,
+                                period = selectedPeriod
                             )
                         }
 
@@ -208,7 +212,8 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                                 subjectTitle = courseDetails.subjectTitle,
                                 classShortName = courseDetails.classShortName,
                                 mpId = courseDetails.mpId,
-                                mpLongTitle = courseDetails.mpLongTitle
+                                mpLongTitle = courseDetails.mpLongTitle,
+                                period = selectedPeriod
                             )
                         }
 

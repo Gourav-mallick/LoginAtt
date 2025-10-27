@@ -15,12 +15,14 @@ import androidx.lifecycle.lifecycleScope
 import com.example.login.R
 import com.example.login.db.dao.AppDatabase
 import com.example.login.db.entity.Attendance
+import com.example.login.db.entity.AttendanceIdGenerator
 import com.example.login.db.entity.Session
 import com.example.login.db.entity.Student
 import kotlinx.coroutines.launch
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.String
 import kotlin.concurrent.thread
 
 
@@ -370,16 +372,35 @@ class AttendanceActivity : AppCompatActivity() {
                 return@launch
             }
 
+
             val timeStamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
+            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+
+            val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
+            val savedInstituteId = prefs.getString("selectedInstituteIds", "")
+            val savedInstituteName = prefs.getString("selectedInstituteNames", "")
+
+
             val attendance = Attendance(
-                atteId = UUID.randomUUID().toString(),
+
+                atteId = AttendanceIdGenerator.nextId(),
                 sessionId = cycle.sessionId!!,
                 studentId = student.studentId,
                 classId = student.classId,
                 status = "P",
                 markedAt = timeStamp,
                 syncStatus = "pending",
-                instId = student.instId
+                instId = savedInstituteId!!,
+                instShortName = savedInstituteName,
+                date = currentDate,
+                startTime = startTime,
+                endTime = "",
+                academicYear = "",
+                period = "",
+                teacherId =cycle.teacherId!!,
+                teacherName = cycle.teacherName!!,
+
             )
             db.attendanceDao().insertAttendance(attendance)
             saveCurrentCycle()
@@ -409,6 +430,8 @@ class AttendanceActivity : AppCompatActivity() {
                 .setPositiveButton("Yes") { _, _ ->
                     lifecycleScope.launch {
                         cycle.sessionId?.let { db.sessionDao().updateSessionEnd(it, currentTime) }
+                        cycle.sessionId?.let{db.attendanceDao().updateAttendanceEndTime(it, currentTime)}
+
                         val intent = Intent(this@AttendanceActivity, ClassSelectActivity::class.java)
                         intent.putExtra("SESSION_ID", cycle.sessionId)
                         intent.putExtra("TEACHER_ID", cycle.teacherId)

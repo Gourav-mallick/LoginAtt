@@ -178,6 +178,7 @@ class SelectInstituteActivity : AppCompatActivity() {
 
                             prefs.edit()
                                 .putString("selectedInstituteIds", instIds)
+                                .putString("selectedInstituteNames", schoolShortNames.joinToString(","))
                                 .apply()
                             Log.d(TAG, "Saved selected institutes: $instIds")
 

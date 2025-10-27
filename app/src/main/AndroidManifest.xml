@@ -50,6 +50,9 @@
         <activity android:name=".view.ClassSelectActivity"/>
         <activity android:name=".view.PeriodCourseSelectActivity"/>
         <activity android:name=".view.AttendanceOverviewActivity"/>
+        <activity android:name=".view.SyncAttendanceToServer"/>
+
+
 
 
 
