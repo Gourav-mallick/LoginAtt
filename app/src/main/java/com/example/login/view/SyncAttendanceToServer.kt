@@ -115,6 +115,25 @@ class SyncAttendanceToServer : AppCompatActivity(){
                     return@launch
                 }
 
+                // 🔹 Group pending attendance by class and count present students
+                val classCounts = pendingList
+                    .groupBy { it.classId ?: "Unknown Class" }
+                    .mapValues { (_, list) -> list.count { it.status == "P" } }
+
+                  // 🔹 Prepare summary text
+                val summary = classCounts.entries.joinToString("\n") {
+                    "${it.key}: Present Students - ${it.value}"
+                }
+
+               // 🔹 Show on Toast
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@SyncAttendanceToServer,
+                        summary.ifEmpty { "No attendance data found" },
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
                 val attArray = JSONArray()
                 for (att in pendingList) attArray.put(mapAttendanceToApiFormat(att))
 
@@ -143,13 +162,13 @@ class SyncAttendanceToServer : AppCompatActivity(){
                             val responseObj = collection?.optJSONObject("response")
                             val apiStatus = responseObj?.optString("status", "FAILED") ?: "FAILED"
                             val apiMsgArray = responseObj?.optJSONArray("msgAr")
-
+                            val msg = apiMsgArray?.optString(0) ?: "Attendance synced successfully"
                             if (apiStatus.equals("SUCCESS", ignoreCase = true)) {
                                 // ✅ Server accepted data
                                 pendingList.forEach {
                                     db.attendanceDao().updateSyncStatus(it.atteId, "complete")
                                 }
-                                statusText.text = "✅ Attendance synced successfully!"
+                                statusText.text = msg
                                 Toast.makeText(
                                     this@SyncAttendanceToServer,
                                     "Server accepted sync!",

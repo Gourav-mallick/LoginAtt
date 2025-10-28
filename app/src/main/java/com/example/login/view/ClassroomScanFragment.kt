@@ -14,7 +14,9 @@ import com.example.login.R
 import androidx.appcompat.app.AlertDialog
 import android.widget.EditText
 import android.widget.Button
-
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 class ClassroomScanFragment : Fragment() {
@@ -33,19 +35,28 @@ class ClassroomScanFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         tvSyncStatus = view.findViewById(R.id.tvSyncStatus)
      //   tvInstruction = view.findViewById(R.id.tvInstruction)
-        btnRefresh = view.findViewById(R.id.btnRefresh)
+    //    btnRefresh = view.findViewById(R.id.btnRefresh)
 
-        tvSyncStatus.text = "Sync : Sending attendance to server."
+        tvSyncStatus.text = "Tap to send attendance.."
+        val tvDate = view.findViewById<TextView>(R.id.tvDate)
+        val tvTime = view.findViewById<TextView>(R.id.tvTime)
+
+
+        // Set current date and time
+        val currentDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+
+        tvDate.text = "$currentDate"
+        tvTime.text = "$currentTime"
       //  tvInstruction.text = "Follow Instruction.."
 
-        btnRefresh.setOnClickListener {
+        tvSyncStatus.setOnClickListener {
             AlertDialog.Builder(requireContext())
                 .setTitle("Confirm Sync")
                 .setMessage("Do you want to send pending attendance to the server?")
                 .setPositiveButton("Yes") { _, _ ->
-                    // Step 2: Show username/password popup
-        //            showDialogBoxForEnterCredential()
-                    showDialogBoxForCredentials()
+                    val intent = Intent(requireContext(), SyncAttendanceToServer::class.java)
+                    startActivity(intent)
 
 
                 }
@@ -56,7 +67,7 @@ class ClassroomScanFragment : Fragment() {
     }
 
 
-    // 🔹 Popup for entering username & password
+    // 🔹 Popup for entering username & password - no use
     private fun showDialogBoxForCredentials() {
         val dialogView = layoutInflater.inflate(R.layout.validate_for_sync_data_to_server, null)
         val edtUserName = dialogView.findViewById<EditText>(R.id.edtUserName)

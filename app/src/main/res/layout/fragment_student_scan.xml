@@ -2,71 +2,133 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp"
-    android:background="#F8FAFC">
+    android:background="@drawable/bg_gradient"
+    android:padding="16dp">
 
-    <!-- Teacher Name -->
-    <TextView
-        android:id="@+id/tvTeacherName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Teacher: -"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#1E293B"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:gravity="center"/>
-
-    <!-- Present Students Count -->
-    <TextView
-        android:id="@+id/tvPresentCount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Present Students: 0"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#2563EB"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/tvTeacherName"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-
-    <!-- Last Scanned Student -->
-    <TextView
-        android:id="@+id/tvLastStudent"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="16sp"
-        android:textColor="#0F172A"
-        android:layout_marginTop="40dp"
-        android:gravity="center"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F9F9F9"
         android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/tvPresentCount"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        tools:layout_editor_absoluteX="16dp"
+        tools:layout_editor_absoluteY="-2dp">
 
-    <!-- Instruction Text -->
-    <TextView
-        android:id="@+id/tvInstruction"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:text="Tap student card / Other Card"
-        android:textColor="#141313"
-        android:textSize="18sp"
-        android:padding="12dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvLastStudent"/>
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Capture Attendance"
+            android:textColor="#000"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tvInstruction"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="Tap student card / Other Card"
+            android:textColor="#141313"
+            android:textSize="16sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
+
+        <TextView
+            android:id="@+id/tvTeacherName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text=""
+            android:textColor="#141313"
+            android:textSize="16sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.508"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvInstruction" />
+
+        <TextView
+            android:id="@+id/tvTeacherLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:gravity="center"
+            android:text="Teacher Name"
+            android:textColor="#141313"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvTeacherName" />
+
+        <TextView
+            android:id="@+id/tvPresentCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="0"
+            android:textColor="#141313"
+            android:textSize="24sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.497"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvTeacherLabel" />
+
+        <TextView
+            android:id="@+id/tvTotalStudentLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:gravity="center"
+            android:text="Total Present Student"
+            android:textColor="#141313"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvPresentCount" />
+
+        <!-- Instruction Text -->
+        <TextView
+            android:id="@+id/tvLastStudent"
+            android:layout_width="363dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:padding="8dp"
+            android:text=""
+            android:textColor="#141313"
+            android:textSize="16sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvTotalStudentLabel" />
+
+        <TextView
+            android:id="@+id/tvLatestCardTapStudentLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text=""
+            android:textColor="#141313"
+            android:textSize="16sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvLastStudent" />
 
 
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
 
 

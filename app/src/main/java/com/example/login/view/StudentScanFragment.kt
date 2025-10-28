@@ -1,5 +1,6 @@
 package com.example.login.view
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,6 +10,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.login.R
 import com.example.login.db.entity.Student
+import androidx.activity.OnBackPressedCallback
 
 
 class StudentScanFragment : Fragment() {
@@ -17,11 +19,14 @@ class StudentScanFragment : Fragment() {
     private lateinit var tvInstruction: TextView
     private lateinit var tvTeacherName: TextView
     private lateinit var tvLastStudent: TextView
+    private lateinit var tvLatestCardTapStudentLabel: TextView
+
 
     private var presentCount = 0
 
     companion object {
         private const val ARG_TEACHER = "arg_teacher"
+
 
         fun newInstance(teacherName: String) = StudentScanFragment().apply {
             arguments = Bundle().apply {
@@ -41,13 +46,29 @@ class StudentScanFragment : Fragment() {
         tvInstruction = view.findViewById(R.id.tvInstruction)
         tvTeacherName = view.findViewById(R.id.tvTeacherName)
         tvLastStudent = view.findViewById(R.id.tvLastStudent)
+        tvLatestCardTapStudentLabel= view.findViewById(R.id.tvLatestCardTapStudentLabel)
 
         tvInstruction.text = "Tap student card to mark present."
 
         val teacher = arguments?.getString(ARG_TEACHER) ?: "-"
-        tvTeacherName.text = "Teacher: $teacher"
+        tvTeacherName.text = "$teacher"
 
         updatePresentCount()
+
+        // 🔹 Disable back press (both button and gesture)
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    Toast.makeText(
+                        requireContext(),
+                        "Back is disabled on this screen",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            })
+        // 🔹 Save state that user is currently in StudentScanFragment
+      //  saveResumeFlag(requireContext(), true)
     }
 
 
@@ -59,8 +80,9 @@ class StudentScanFragment : Fragment() {
         // Optional: prevent duplicate student scans
         // You can implement a Set or DB check if needed
         presentCount++
-        tvPresentCount.text = "Present Students: $presentCount"
-        tvLastStudent.text = " ${student.studentName} - Present"
+        tvPresentCount.text = "$presentCount"
+        tvLastStudent.text = " ${student.studentName}"
+        tvLatestCardTapStudentLabel.text = "Latest Card Tap"
         updateInstruction("Tap student card / Other Card")
         return true
     }
@@ -77,9 +99,13 @@ class StudentScanFragment : Fragment() {
     }
 
     private fun updatePresentCount() {
-        tvPresentCount.text = "Present Students: $presentCount"
+        tvPresentCount.text = "$presentCount"
     }
     fun getStudentCount(): Int {
         return presentCount
     }
+
+
+
+
 }

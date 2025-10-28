@@ -39,12 +39,16 @@ class ClassSelectActivity : ComponentActivity() {
 
 
         lifecycleScope.launch {
-            val allClasses = db.classDao().getAllClasses()
+
             val preSelected = db.attendanceDao().getDistinctClassIdsForCurrentSession(sessionId)
+            val allClasses = db.classDao().getAllClasses()
+
+            // 🔹 Filter only preselected classes
+            val preSelectedClasses = allClasses.filter { preSelected.contains(it.classId) }
 
             selectedClassIds.addAll(preSelected)
 
-            val adapter = ClassSelectAdapter(allClasses, preSelected) { classId, isChecked, wasPreSelected ->
+            val adapter = ClassSelectAdapter(preSelectedClasses, preSelected) { classId, isChecked, wasPreSelected ->
                 handleClassSelectionChange(classId, isChecked, wasPreSelected)
             }
 
@@ -105,13 +109,13 @@ class ClassSelectActivity : ComponentActivity() {
                 val students = db.attendanceDao().getStudentsForClassInSession(sessionId, classId)
 
                 if (students.isNotEmpty()) {
-                    val studentListText = students.joinToString("\n") { "${it.studentId} - ${it.studentName}" }
+                  //  val studentListText = students.joinToString("\n") { "${it.studentId} - ${it.studentName}" }
 
                     runOnUiThread {
                         AlertDialog.Builder(this@ClassSelectActivity)
-                            .setTitle("Remove Class")
+                            .setTitle("Remove Attandance")
                             .setMessage(
-                                "These students belong to this class:\n\n$studentListText\n\n" +
+                                "These students belong to this class:\nNo. of Students -\n${students.size} \n\n" +
                                         "Their attendance will be deleted. Continue?"
                             )
                             .setPositiveButton("Yes") { _, _ ->
