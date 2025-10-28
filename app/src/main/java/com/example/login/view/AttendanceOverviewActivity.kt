@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.login.databinding.ActivityAttendanceOverviewBinding
 import com.example.login.db.dao.AppDatabase
 import kotlinx.coroutines.launch
+import androidx.activity.OnBackPressedCallback
 
 class AttendanceOverviewActivity : ComponentActivity() {
 
@@ -16,6 +17,9 @@ class AttendanceOverviewActivity : ComponentActivity() {
     private lateinit var db: AppDatabase
     private lateinit var selectedClasses: List<String>
     private lateinit var sessionId: String
+
+    // 🔹 Track whether back press is disabled
+    private var backDisabled = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,6 +29,18 @@ class AttendanceOverviewActivity : ComponentActivity() {
         db = AppDatabase.getDatabase(this)
         selectedClasses = intent.getStringArrayListExtra("SELECTED_CLASSES") ?: emptyList()
         sessionId = intent.getStringExtra("SESSION_ID") ?: ""
+
+        // ✅ Disable back press & back gesture for this screen
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (backDisabled) {
+                    // Do nothing — block back press
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
 
         loadOverviewData()
 

@@ -10,10 +10,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import com.example.login.R
-//import com.example.login.utils.DataSyncToServer
-import kotlinx.coroutines.launch
 import androidx.appcompat.app.AlertDialog
 import android.widget.EditText
 import android.widget.Button
@@ -38,7 +35,7 @@ class ClassroomScanFragment : Fragment() {
      //   tvInstruction = view.findViewById(R.id.tvInstruction)
         btnRefresh = view.findViewById(R.id.btnRefresh)
 
-        tvSyncStatus.text = "Sync Status : Please sync device."
+        tvSyncStatus.text = "Sync : Sending attendance to server."
       //  tvInstruction.text = "Follow Instruction.."
 
         btnRefresh.setOnClickListener {

@@ -36,7 +36,7 @@ class TeacherScanFragment : Fragment() {
       //  tvHeader.text = "Tap Staff card to continue..."
        // tvSyncStatus.text = "Sync Status : Please sync device."
         val classId = arguments?.getString(ARG_CLASSID ) ?: "-"
-        tvClassCard.text = "Class  $classId"
+        tvClassCard.text = "Class Room :  $classId"
       //  tvTeacher.text = "Teacher: - (Scan Teacher Card)"
     }
 /*

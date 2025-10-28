@@ -43,8 +43,8 @@
         android:text="Sync Now"
         android:paddingHorizontal="32dp"
         android:paddingVertical="12dp"
-        android:backgroundTint="@color/purple_500"
-        android:textColor="@android:color/white"
+        android:background="#0000FF"
+        android:textColor="@color/btn_text_on_blue"
         android:textAllCaps="false"
         android:textSize="16sp" />
 

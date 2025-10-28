@@ -40,6 +40,7 @@ class LoginActivity : AppCompatActivity() {
         edtUser.setText(prefs.getString("username", ""))
         edtPass.setText(prefs.getString("password", ""))
 
+
         btnLogin.setOnClickListener {
             val baseUrl = edtUrl.text.toString().trim()
             val username = edtUser.text.toString().trim()
@@ -51,7 +52,6 @@ class LoginActivity : AppCompatActivity() {
                 Toast.makeText(this, "No network connection. Please check your network.", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-
 
 
             if (baseUrl.isBlank() || username.isBlank() || password.isBlank()) {
@@ -92,7 +92,6 @@ class LoginActivity : AppCompatActivity() {
                         ).show()
                         return@launch
                     }
-
 
 
 
@@ -183,7 +182,7 @@ class LoginActivity : AppCompatActivity() {
                                 //check valid user or not
                                 if (isUserValid) {
 
-                                    // ✅ Save login details for next launch
+                                    //  Save login details for next launch
                                     prefs.edit()
                                         .putString("baseUrl", baseUrl)
                                         .putString("username", username)

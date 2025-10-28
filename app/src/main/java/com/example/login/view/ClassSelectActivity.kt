@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.login.databinding.ActivityClassSelectBinding
@@ -25,6 +26,17 @@ class ClassSelectActivity : ComponentActivity() {
 
         db = AppDatabase.getDatabase(this)
         sessionId = intent.getStringExtra("SESSION_ID") ?: return
+
+        // 🔹 Disable back button + back gesture using OnBackPressedDispatcher
+        val backCallback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // This is called when the user presses the back button or swipes back
+                Toast.makeText(this@ClassSelectActivity, "Back disabled on this screen", Toast.LENGTH_SHORT).show()
+
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, backCallback)
+
 
         lifecycleScope.launch {
             val allClasses = db.classDao().getAllClasses()
@@ -55,6 +67,14 @@ class ClassSelectActivity : ComponentActivity() {
 
                 Toast.makeText(this@ClassSelectActivity, "Classes updated successfully", Toast.LENGTH_SHORT).show()
 
+
+                // 🔹 When continuing, clear resume flag so app won’t reopen here again
+                getSharedPreferences("APP_STATE", MODE_PRIVATE)
+                    .edit()
+                    .remove("IS_IN_CLASS_SELECT")
+                    .remove("SESSION_ID")
+                    .apply()
+
                 // 🔹 Navigate next
                 val intent = Intent(this@ClassSelectActivity, PeriodCourseSelectActivity::class.java)
                 intent.putExtra("SESSION_ID", sessionId)
@@ -63,6 +83,19 @@ class ClassSelectActivity : ComponentActivity() {
                 finish()
             }
         }
+    }
+
+
+
+
+    // 🔹 Save app state so when reopened, it resumes here
+    override fun onPause() {
+        super.onPause()
+        getSharedPreferences("APP_STATE", MODE_PRIVATE)
+            .edit()
+            .putBoolean("IS_IN_CLASS_SELECT", true)
+            .putString("SESSION_ID", sessionId)
+            .apply()
     }
 
     private fun handleClassSelectionChange(classId: String, isChecked: Boolean, wasPreSelected: Boolean) {

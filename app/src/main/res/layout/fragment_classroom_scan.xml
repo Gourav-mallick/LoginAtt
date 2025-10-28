@@ -56,6 +56,44 @@
             app:tint="#2E7DFF"/>
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/layoutResumeInfo"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#E8F0FF"
+        android:padding="12dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/layoutSyncStatus"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tvResumeClass"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Resumed Class: -"
+            android:textStyle="bold"
+            android:textColor="#2E7DFF"
+            android:textSize="16sp"/>
+
+        <TextView
+            android:id="@+id/tvResumeTeacher"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Teacher: -"
+            android:textSize="14sp"
+            android:textColor="#333333"/>
+
+        <TextView
+            android:id="@+id/tvResumeStudents"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Present Students: 0"
+            android:textSize="14sp"
+            android:textColor="#333333"/>
+    </LinearLayout>
+
     <!-- Center Instruction -->
     <TextView
         android:id="@+id/tvStart"

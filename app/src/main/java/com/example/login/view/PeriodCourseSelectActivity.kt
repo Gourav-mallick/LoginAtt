@@ -7,6 +7,7 @@ import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.login.databinding.ActivityPeriodCourseSelectBinding
@@ -32,6 +33,26 @@ class PeriodCourseSelectActivity : ComponentActivity() {
         db = AppDatabase.getDatabase(this)
         sessionId = intent.getStringExtra("SESSION_ID") ?: return
         selectedClasses = intent.getStringArrayListExtra("SELECTED_CLASSES") ?: emptyList()
+
+
+        // 🔹 Disable back press (both button and gesture)
+        val backCallback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                Toast.makeText(
+                    this@PeriodCourseSelectActivity,
+                    "Back disabled on this screen",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, backCallback)
+
+        // 🔹 Save app state so that reopening resumes here
+        getSharedPreferences("APP_STATE", MODE_PRIVATE)
+            .edit()
+            .putBoolean("IS_IN_PERIOD_SELECT", true)
+            .putString("SESSION_ID", sessionId)
+            .apply()
 
         setupPeriodDropdown()
         loadCourses()
@@ -118,6 +139,13 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
                 Toast.makeText(this@PeriodCourseSelectActivity, "Manual course added successfully", Toast.LENGTH_SHORT).show()
 
+                // 🔹 Clear resume flag when proceeding
+                getSharedPreferences("APP_STATE", MODE_PRIVATE)
+                    .edit()
+                    .remove("IS_IN_PERIOD_SELECT")
+                    .remove("SESSION_ID")
+                    .apply()
+
                 val intent =
                     Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
                 intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
@@ -182,6 +210,14 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
                         Toast.makeText(this@PeriodCourseSelectActivity, "Maltiple course added successfully", Toast.LENGTH_SHORT).show()
 
+                        // 🔹 Clear resume flag when proceeding
+                        getSharedPreferences("APP_STATE", MODE_PRIVATE)
+                            .edit()
+                            .remove("IS_IN_PERIOD_SELECT")
+                            .remove("SESSION_ID")
+                            .apply()
+
+
                         val intent = Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
                         intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
                         intent.putExtra("SESSION_ID", sessionId)
@@ -220,6 +256,14 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         db.sessionDao().updateSessionPeriodAndSubject(sessionId, selectedPeriod, courseId)
 
                         Toast.makeText(this@PeriodCourseSelectActivity, "single course attendance added successfully", Toast.LENGTH_SHORT).show()
+
+                        // 🔹 Clear resume flag when proceeding
+                        getSharedPreferences("APP_STATE", MODE_PRIVATE)
+                            .edit()
+                            .remove("IS_IN_PERIOD_SELECT")
+                            .remove("SESSION_ID")
+                            .apply()
+
 
                         val intent = Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
                         intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))

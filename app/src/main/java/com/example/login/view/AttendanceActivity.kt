@@ -24,7 +24,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.String
 import kotlin.concurrent.thread
-
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.view.View
 
 class AttendanceActivity : AppCompatActivity() {
 
@@ -94,7 +96,7 @@ class AttendanceActivity : AppCompatActivity() {
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fragment_container, frag, TAG_STUDENT)
                         .commitAllowingStateLoss()
-                    Toast.makeText(this@AttendanceActivity, "Resumed class: ${first.classroomName}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@AttendanceActivity, "Resumed class: ${first.classroomId}", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error restoring sessions: ${e.message}")
@@ -273,13 +275,13 @@ class AttendanceActivity : AppCompatActivity() {
                     .replace(R.id.fragment_container, frag, TAG_TEACHER)
                     .commitAllowingStateLoss()
             } else {
-                // 🔹 If same class → end popup
+                //  If same class → end popup
                 if (currentVisibleClassroomId == classroomId) {
                     showEndClassDialog(classroomId)
                     return@launch
                 }
 
-                // 🔹 Resume existing class
+                //  Resume existing class
                 currentVisibleClassroomId = classroomId
                 if (!existing.sessionId.isNullOrEmpty()) {
                     Toast.makeText(this@AttendanceActivity, "Resuming ${existing.classroomId}", Toast.LENGTH_SHORT).show()
@@ -425,8 +427,8 @@ class AttendanceActivity : AppCompatActivity() {
 
             val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             AlertDialog.Builder(this@AttendanceActivity)
-                .setTitle("Close Class: ${cycle.classroomName}")
-                .setMessage("Present Students: $presentCount\nDo you want to close this class?")
+                .setTitle("Close Class: ${cycle.classroomId}")
+                .setMessage("Do you want to close this class?")
                 .setPositiveButton("Yes") { _, _ ->
                     lifecycleScope.launch {
                         cycle.sessionId?.let { db.sessionDao().updateSessionEnd(it, currentTime) }
@@ -534,7 +536,6 @@ class AttendanceActivity : AppCompatActivity() {
     }
 
 
-
     private fun restoreLastCycleIfExists() {
         val prefs = getSharedPreferences("AttendancePrefs", MODE_PRIVATE)
         val classId = prefs.getString("classId", null)
@@ -543,24 +544,67 @@ class AttendanceActivity : AppCompatActivity() {
         val teacherId = prefs.getString("teacherId", null)
         val teacherName = prefs.getString("teacherName", null)
 
-        if (classId != null && sessionId != null) {
-            val cycle = AttendanceCycle(
-                classroomId = classId,
-                classroomName = className ?: "",
-                teacherId = teacherId,
-                teacherName = teacherName,
-                sessionId = sessionId
-            )
-            activeClasses[classId] = cycle
-            currentVisibleClassroomId = classId
+        // No previous cycle saved
+        if (classId.isNullOrEmpty() || sessionId.isNullOrEmpty()) {
+            Log.d(TAG, "No previous attendance cycle found to restore.")
+            return
+        }
 
-            // show same Student Scan Fragment again
-            val frag = StudentScanFragment.newInstance(teacherName ?: "")
+        // ✅ Recreate the previous attendance cycle
+        val cycle = AttendanceCycle(
+            classroomId = classId,
+            classroomName = className ?: "",
+            teacherId = teacherId,
+            teacherName = teacherName,
+            sessionId = sessionId
+        )
+        activeClasses[classId] = cycle
+        currentVisibleClassroomId = classId
+        Log.d(TAG, "Restoring last cycle for class: $classId, session: $sessionId")
+
+        // ✅ Make sure the ClassroomScanFragment exists (inflate it if missing)
+        var classroomFragment =
+            supportFragmentManager.findFragmentByTag("CLASSROOM") as? ClassroomScanFragment
+        if (classroomFragment == null) {
+            classroomFragment = ClassroomScanFragment.newInstance()
             supportFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, frag, "STUDENT")
-                .commitAllowingStateLoss()
+                .replace(R.id.fragment_container, classroomFragment, "CLASSROOM")
+                .commitNow() // commitNow ensures view is available immediately
+        } else {
+            supportFragmentManager.executePendingTransactions()
+        }
 
-            Toast.makeText(this, "Resumed last session for $className", Toast.LENGTH_LONG).show()
+        // ✅ Safely access the fragment's resume info layout
+        val fragView = classroomFragment.view
+        val layout = fragView?.findViewById<LinearLayout>(R.id.layoutResumeInfo)
+        val tvClass = fragView?.findViewById<TextView>(R.id.tvResumeClass)
+        val tvTeacher = fragView?.findViewById<TextView>(R.id.tvResumeTeacher)
+        val tvStudents = fragView?.findViewById<TextView>(R.id.tvResumeStudents)
+
+        // ✅ Load attendance count asynchronously and update UI
+        lifecycleScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(this@AttendanceActivity)
+                val studentCount = db.attendanceDao()
+                    .getAttendancesForClass(sessionId, classId)
+                    .size
+
+                runOnUiThread {
+                    layout?.visibility = View.VISIBLE
+                    tvClass?.text = "Resumed Class: ${className ?: "-"}"
+                    tvTeacher?.text = "Teacher: ${teacherName ?: "-"}"
+                    tvStudents?.text = "Present Students: $studentCount"
+                }
+
+                Toast.makeText(
+                    this@AttendanceActivity,
+                    "Resumed last session for $className",
+                    Toast.LENGTH_LONG
+                ).show()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error restoring last cycle UI: ${e.message}", e)
+            }
         }
     }
 
