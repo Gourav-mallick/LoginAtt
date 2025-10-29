@@ -27,6 +27,13 @@ import kotlin.concurrent.thread
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.view.View
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.example.login.utility.AutoSyncWorker
+import java.util.concurrent.TimeUnit
+import android.os.SystemClock
+import android.net.ConnectivityManager
 
 class AttendanceActivity : AppCompatActivity() {
 
@@ -59,6 +66,11 @@ class AttendanceActivity : AppCompatActivity() {
         setContentView(R.layout.activity_attendance)
         //if app exit then restore last cycle
         restoreLastCycleIfExists()
+
+        val request = PeriodicWorkRequestBuilder<AutoSyncWorker>(1, TimeUnit.HOURS).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "HourlySync", ExistingPeriodicWorkPolicy.KEEP, request
+        )
 
         // Check device time and match with server time
         checkDeviceTime { startClassroomScanFragment() }
@@ -293,9 +305,18 @@ class AttendanceActivity : AppCompatActivity() {
                 return@launch
             }
 
+            if (isLastSyncExpired()) {
+                Toast.makeText(this@AttendanceActivity,
+                    "Last sync older than 24 hours. Please connect to network to sync time.",
+                    Toast.LENGTH_LONG).show()
+                return@launch
+            }
+
+
             val sessionId = UUID.randomUUID().toString()
             val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            val estimated = getEstimatedCurrentTime()
+            val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(estimated)
 
             val session = Session(
                 sessionId = sessionId,
@@ -310,6 +331,8 @@ class AttendanceActivity : AppCompatActivity() {
                 instId = "INST001",
                 syncStatus = "pending"
             )
+            Toast.makeText(this@AttendanceActivity, "Using estimated time: $startTime", Toast.LENGTH_SHORT).show()
+
 
             val db = AppDatabase.getDatabase(this@AttendanceActivity)
             db.sessionDao().insertSession(session)
@@ -614,6 +637,35 @@ class AttendanceActivity : AppCompatActivity() {
         }
     }
 
+    private fun getEstimatedCurrentTime(): Date {
+        val prefs = getSharedPreferences("SyncPrefs", MODE_PRIVATE)
+        val lastSyncStr = prefs.getString("last_sync_time", null) ?: return Date()
+        return try {
+            val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault())
+            val lastSyncDate = sdf.parse(lastSyncStr) ?: return Date()
+            val now = Date()
+            val diffMillis = now.time - lastSyncDate.time
+            val diffHours = diffMillis / (1000 * 60 * 60)
+            // Add elapsed hours to last sync to estimate
+            Date(lastSyncDate.time + diffHours * 60 * 60 * 1000)
+        } catch (e: Exception) {
+            Date()
+        }
+    }
+
+
+    private fun isLastSyncExpired(): Boolean {
+        val prefs = getSharedPreferences("SyncPrefs", MODE_PRIVATE)
+        val lastSyncStr = prefs.getString("last_sync_time", null) ?: return true
+        return try {
+            val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault())
+            val last = sdf.parse(lastSyncStr) ?: return true
+            val hours = (Date().time - last.time) / (1000 * 60 * 60)
+            hours > 24
+        } catch (e: Exception) {
+            true
+        }
+    }
 
 
 }

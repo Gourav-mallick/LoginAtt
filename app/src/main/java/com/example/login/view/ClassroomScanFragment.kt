@@ -1,7 +1,10 @@
 package com.example.login.view
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -18,6 +21,11 @@ import androidx.activity.OnBackPressedCallback
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlin.concurrent.thread
 
 
 class ClassroomScanFragment : Fragment() {
@@ -51,7 +59,50 @@ class ClassroomScanFragment : Fragment() {
 
         tvDate.text = "$currentDate"
         tvTime.text = "$currentTime"
-      //  tvInstruction.text = "Follow Instruction.."
+
+
+        val prefs = requireContext().getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE)
+        val tvLastSync = view.findViewById<TextView>(R.id.tvLastSync)
+
+        val lastSync = prefs.getString("last_sync_time", null)
+        if (lastSync != null) {
+            tvLastSync.text = "Last Sync: $lastSync"
+        } else {
+            tvLastSync.text = "Last Sync: --"
+        }
+
+// Listen for broadcast updates
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                val time = intent?.getStringExtra("time") ?: return
+                tvLastSync.text = "Last Sync: $time"
+            }
+        }
+        val filter = IntentFilter("SYNC_UPDATE")
+        @Suppress("UnspecifiedRegisterReceiverFlag")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requireContext().registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            requireContext().registerReceiver(receiver, filter)
+        }
+
+
+// Optional: show offline hours
+        viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                val stored = prefs.getString("last_sync_time", null)
+                if (stored != null) {
+                    val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault())
+                    val last = sdf.parse(stored)
+                    val diffHours = ((Date().time - last.time) / (1000 * 60 * 60)).toInt()
+                    tvSyncStatus.text = if (diffHours > 0) "Working offline for $diffHours hrs" else ""
+                }
+                delay(60_000)
+            }
+        }
+
+
+        //  tvInstruction.text = "Follow Instruction.."
         // 🔹 Disable back press (both button and gesture)
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
