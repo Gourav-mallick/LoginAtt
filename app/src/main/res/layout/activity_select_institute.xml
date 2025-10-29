@@ -1,126 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/get_institutedata"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:fitsSystemWindows="true"
-    android:background="#FDFDF7">
+    android:background="@drawable/bg_gradient"
+    android:padding="16dp">
 
-    <!-- 🔹 Top Toolbar -->
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/settingsToolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_gradient"
-        android:titleTextColor="#FFFFFF"
-        android:elevation="4dp"
-        android:padding="10dp">
+    <!-- Outer White Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/innerContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#F9F9F9"
+        android:padding="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- 🔹 Title -->
         <TextView
+            android:id="@+id/tvTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Select Institute"
-            android:textColor="#FFFFFF"
             android:textAlignment="center"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </androidx.appcompat.widget.Toolbar>
-
-    <!-- 🔹 Container for content -->
-    <LinearLayout
-        android:id="@+id/rootLayout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:layout_margin="15dp"
-        android:background="@drawable/bg_container"
-        android:padding="16dp">
-
-        <!-- Header -->
-        <TextView
-            android:id="@+id/institute_Title_header"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Select Institute"
+            android:textColor="#000"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#334155"
-            android:textSize="14sp"
-            android:layout_marginBottom="10dp" />
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_marginBottom="8dp" />
 
-        <!-- 🔹 Scrollable Institute List -->
-        <ScrollView
-            android:id="@+id/instituteScrollView"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:overScrollMode="ifContentScrolls">
-
-            <LinearLayout
-                android:id="@+id/instituteSelectionLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-        </ScrollView>
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:visibility="gone"
-            android:layout_marginTop="16dp" />
-
-        <!-- 🔹 Account Section (Fixed at Bottom) -->
+        <!-- 🔹 Content Container -->
         <LinearLayout
-            android:id="@+id/accountDetailsLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:id="@+id/rootLayout"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:orientation="vertical"
-            android:layout_marginTop="16dp">
+            android:layout_margin="15dp"
+            android:padding="16dp"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-            <TextView
-                android:id="@+id/accountDetailsLabel"
+            <!-- 🔹 Scrollable Institute List -->
+            <ScrollView
+                android:id="@+id/instituteScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:overScrollMode="ifContentScrolls">
+
+                <LinearLayout
+                    android:id="@+id/instituteSelectionLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Account Details"
-                android:textStyle="bold"
-                android:textColor="#334155"
-                android:textSize="14sp"
-                android:layout_marginBottom="10dp" />
+                android:layout_gravity="center"
+                android:visibility="gone"
+                android:layout_marginTop="16dp"
+                style="?android:attr/progressBarStyleLarge"/>
 
-            <EditText
-                android:id="@+id/usernametap"
+            <!-- 🔹 Bottom Section -->
+            <LinearLayout
+                android:id="@+id/accountDetailsLayout"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:hint="Username"
-                android:inputType="textPersonName"
-                android:background="@drawable/bg_container"
-                android:paddingStart="12dp"
-                android:textColorHint="#64748B"
-                android:layout_marginBottom="12dp" />
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="16dp">
 
-            <EditText
-                android:id="@+id/passwordtap"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:hint="Password"
-                android:background="@drawable/bg_container"
-                android:paddingStart="12dp"
-                android:textColorHint="#64748B"
-                android:inputType="textPassword"
-                android:layout_marginBottom="24dp" />
-
-            <Button
-                android:id="@+id/btnLogin"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="Sync Data"
-                android:background="@drawable/bg_gradient"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:textAllCaps="false" />
+                <Button
+                    android:id="@+id/btnLogin"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Sync Data"
+                    android:background="@color/blue"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textAllCaps="false" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
-</LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

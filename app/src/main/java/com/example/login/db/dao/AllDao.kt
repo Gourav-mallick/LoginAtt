@@ -179,10 +179,10 @@ interface SessionDao {
     suspend fun getSessionById(sessionId: String): Session?
 
 
-    @Query("UPDATE sessions SET periodId = :periodId, subjectId = :subjectIds WHERE sessionId = :sessionId")
+    @Query("UPDATE sessions SET  subjectId = :subjectIds WHERE sessionId = :sessionId")
     suspend fun updateSessionPeriodAndSubject(
         sessionId: String,
-        periodId: String,
+
         subjectIds: String
     )
 
@@ -243,8 +243,8 @@ interface AttendanceDao {
             subjectTitle = :subjectTitle,
             classShortName = :classShortName,
             mpId = :mpId,
-            mpLongTitle = :mpLongTitle,
-            period=:period
+            mpLongTitle = :mpLongTitle
+
         WHERE sessionId = :sessionId
     """)
     suspend fun updateAttendanceWithCourseDetails(
@@ -257,8 +257,7 @@ interface AttendanceDao {
         subjectTitle: String?,
         classShortName: String?,
         mpId: String?,
-        mpLongTitle: String?,
-        period: String?
+        mpLongTitle: String?
     )
 
 

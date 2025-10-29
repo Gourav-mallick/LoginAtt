@@ -14,6 +14,7 @@ import com.example.login.R
 import androidx.appcompat.app.AlertDialog
 import android.widget.EditText
 import android.widget.Button
+import androidx.activity.OnBackPressedCallback
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,7 +38,9 @@ class ClassroomScanFragment : Fragment() {
      //   tvInstruction = view.findViewById(R.id.tvInstruction)
     //    btnRefresh = view.findViewById(R.id.btnRefresh)
 
-        tvSyncStatus.text = "Tap to send attendance.."
+     //   tvSyncStatus.text = "Tap to send attendance.."
+
+
         val tvDate = view.findViewById<TextView>(R.id.tvDate)
         val tvTime = view.findViewById<TextView>(R.id.tvTime)
 
@@ -49,6 +52,20 @@ class ClassroomScanFragment : Fragment() {
         tvDate.text = "$currentDate"
         tvTime.text = "$currentTime"
       //  tvInstruction.text = "Follow Instruction.."
+        // 🔹 Disable back press (both button and gesture)
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    Toast.makeText(
+                        requireContext(),
+                        "Back is disabled on this screen",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
+
 
         tvSyncStatus.setOnClickListener {
             AlertDialog.Builder(requireContext())
@@ -64,9 +81,10 @@ class ClassroomScanFragment : Fragment() {
                 .show()
         }
 
+
     }
 
-
+/*
     // 🔹 Popup for entering username & password - no use
     private fun showDialogBoxForCredentials() {
         val dialogView = layoutInflater.inflate(R.layout.validate_for_sync_data_to_server, null)
@@ -116,6 +134,9 @@ class ClassroomScanFragment : Fragment() {
 
         return username == savedUsername && password == savedPassword
     }
+
+ */
+
 
 }
 

@@ -43,7 +43,7 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:layout_marginTop="20dp"
-                android:layout_marginLeft="25dp"
+                android:layout_marginLeft="10dp"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
                 android:paddingHorizontal="8dp"
@@ -56,7 +56,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="👉  Tap to send attendance."
+                    android:text="Tap here to upload attendance"
                     android:textColor="#008000 "
                     android:textSize="18sp" />
             </LinearLayout>
@@ -115,6 +115,18 @@
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
+
+
+            <TextView
+                android:id="@+id/tvLastSync"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Last Sync: --"
+                android:textColor="#444"
+                android:textSize="14sp"
+                app:layout_constraintBottom_toTopOf="@+id/layoutDateTimeVersion"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
 
             <LinearLayout
                 android:id="@+id/layoutDateTimeVersion"

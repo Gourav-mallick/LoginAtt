@@ -27,6 +27,8 @@ class ClassSelectActivity : ComponentActivity() {
         db = AppDatabase.getDatabase(this)
         sessionId = intent.getStringExtra("SESSION_ID") ?: return
 
+
+
         // 🔹 Disable back button + back gesture using OnBackPressedDispatcher
         val backCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {

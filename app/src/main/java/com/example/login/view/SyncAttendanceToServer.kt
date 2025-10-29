@@ -122,7 +122,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
 
                   // 🔹 Prepare summary text
                 val summary = classCounts.entries.joinToString("\n") {
-                    "${it.key}: Present Students - ${it.value}"
+                    "Class :${it.key}: Present Students - ${it.value}"
                 }
 
                // 🔹 Show on Toast
@@ -153,6 +153,14 @@ class SyncAttendanceToServer : AppCompatActivity(){
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     if (response.isSuccessful && response.body() != null) {
+
+                        withContext(Dispatchers.Main) {
+                            statusText.text = "Processing response..."
+                        }
+
+                        // Add delay (e.g., 2 seconds)
+                        kotlinx.coroutines.delay(2000)
+
                         val bodyString = response.body()!!.string()
                         Log.d("SYNC_RESPONSE", bodyString)
 
@@ -277,8 +285,8 @@ class SyncAttendanceToServer : AppCompatActivity(){
             put("int_rollNo","")
             put("attCycleId","")
             put("attSessionId",att.sessionId)
-            put("attSchoolPeriodId",att.period)
-            put("attSchoolPeriodTitle",att.mpLongTitle)
+            put("attSchoolPeriodId","1")
+            put("attSchoolPeriodTitle","")
             put("attSessionStartDateTime",dataStartTime )
             put("attSessionEndDateTime",dataEndTime)
             put("attCapturingIntervalDateTime","")

@@ -34,6 +34,7 @@ class AttendanceActivity : AppCompatActivity() {
     private lateinit var pendingIntent: PendingIntent
     private val TAG = "NFC_DEBUG"
 
+
     companion object {
         private const val TAG_CLASSROOM = "CLASSROOM"
         private const val TAG_TEACHER = "TEACHER"
@@ -70,38 +71,7 @@ class AttendanceActivity : AppCompatActivity() {
         }
 
         // Restore pending sessions (endTime empty) into activeClasses
-        lifecycleScope.launch {
-            try {
-                val db = AppDatabase.getDatabase(this@AttendanceActivity)
-                val sessions = db.sessionDao().getAllSessions()
-                sessions.filter { it.endTime.isNullOrEmpty() }.forEach { s ->
-                    if (!activeClasses.containsKey(s.classId)) {
-                        val classObj = db.classDao().getClassById(s.classId)
-                        val classShort = classObj?.classShortName ?: s.classId
-                        activeClasses[s.classId] = AttendanceCycle(
-                            classroomId = s.classId,
-                            classroomName = classShort,
-                            teacherId = s.teacherId,
-                            teacherName = "",
-                            sessionId = s.sessionId
-                        )
-                        Log.d(TAG, "Restored pending session: ${s.sessionId} for class ${s.classId}")
-                    }
-                }
-                // 🔹 Auto-resume last ongoing class
-                if (activeClasses.isNotEmpty()) {
-                    val first = activeClasses.values.first()
-                    currentVisibleClassroomId = first.classroomId
-                    val frag = StudentScanFragment.newInstance(first.teacherName ?: "")
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.fragment_container, frag, TAG_STUDENT)
-                        .commitAllowingStateLoss()
-                    Toast.makeText(this@AttendanceActivity, "Resumed class: ${first.classroomId}", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error restoring sessions: ${e.message}")
-            }
-        }
+        restorePendingSessions()
     }
 
     override fun onResume() {
@@ -511,8 +481,8 @@ class AttendanceActivity : AppCompatActivity() {
             .setCancelable(false)
             .setPositiveButton("Set Time") { _, _ ->
                 startActivity(Intent(Settings.ACTION_DATE_SETTINGS))
+                finish()
             }
-            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
@@ -607,6 +577,43 @@ class AttendanceActivity : AppCompatActivity() {
             }
         }
     }
+
+    private fun restorePendingSessions() {
+        lifecycleScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(this@AttendanceActivity)
+                val sessions = db.sessionDao().getAllSessions()
+                sessions.filter { it.endTime.isNullOrEmpty() }.forEach { s ->
+                    if (!activeClasses.containsKey(s.classId)) {
+                        val classObj = db.classDao().getClassById(s.classId)
+                        val classShort = classObj?.classShortName ?: s.classId
+                        activeClasses[s.classId] = AttendanceCycle(
+                            classroomId = s.classId,
+                            classroomName = classShort,
+                            teacherId = s.teacherId,
+                            teacherName = "",
+                            sessionId = s.sessionId
+                        )
+                        Log.d(TAG, "Restored pending session: ${s.sessionId} for class ${s.classId}")
+                    }
+                }
+
+                // 🔹 Auto-resume last ongoing class
+                if (activeClasses.isNotEmpty()) {
+                    val first = activeClasses.values.first()
+                    currentVisibleClassroomId = first.classroomId
+                    val frag = StudentScanFragment.newInstance(first.teacherName ?: "")
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.fragment_container, frag, "STUDENT")
+                        .commitAllowingStateLoss()
+                    Toast.makeText(this@AttendanceActivity, "Resumed class: ${first.classroomId}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error restoring sessions: ${e.message}")
+            }
+        }
+    }
+
 
 
 }

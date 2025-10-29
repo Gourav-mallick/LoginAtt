@@ -34,13 +34,14 @@ import android.provider.Settings
 import com.example.login.R
 import com.example.login.utility.CheckNetworkAndInternetUtils
 import com.example.login.utility.TripleDESUtility
+import kotlinx.coroutines.delay
 
 
 class SelectInstituteActivity : AppCompatActivity() {
 
     private lateinit var instituteSelectionLayout: LinearLayout
-    private lateinit var edtUsername: EditText
-    private lateinit var edtPassword: EditText
+ //   private lateinit var edtUsername: EditText
+  //  private lateinit var edtPassword: EditText
     private lateinit var btnSync: Button
     private lateinit var progressBar: ProgressBar
 
@@ -53,8 +54,8 @@ class SelectInstituteActivity : AppCompatActivity() {
         setContentView(R.layout.activity_select_institute)
 
         instituteSelectionLayout = findViewById(R.id.instituteSelectionLayout)
-        edtUsername = findViewById(R.id.usernametap)
-        edtPassword = findViewById(R.id.passwordtap)
+  //      edtUsername = findViewById(R.id.usernametap)
+   //     edtPassword = findViewById(R.id.passwordtap)
         btnSync = findViewById(R.id.btnLogin)
         progressBar = findViewById(R.id.progressBar)
 
@@ -92,32 +93,42 @@ class SelectInstituteActivity : AppCompatActivity() {
 
         // 🔹 Sync button click
         btnSync.setOnClickListener {
-            val enteredUser = edtUsername.text.toString().trim()
-            val enteredPass = edtPassword.text.toString().trim()
+        //    val enteredUser = edtUsername.text.toString().trim()
+        //    val enteredPass = edtPassword.text.toString().trim()
+
+            // Show progress and disable button
+            progressBar.visibility = ProgressBar.VISIBLE
+            btnSync.isEnabled = false
 
             // ✅ NEW: Check network connectivity first
             if (!CheckNetworkAndInternetUtils.isNetworkAvailable(this)) {
                 showToast("No network connection. Please check your network.")
+                progressBar.visibility = ProgressBar.GONE
+                btnSync.isEnabled = true
                 return@setOnClickListener
             }
-
+/*
             // 🔸 Validate fields
             if (enteredUser.isEmpty() || enteredPass.isEmpty()) {
                 showToast("Please enter username and password")
                 return@setOnClickListener
             }
 
+ */
             if (selectedInstitutes.isEmpty()) {
                 showToast("Please select at least one institute")
+                progressBar.visibility = ProgressBar.GONE
+                btnSync.isEnabled = true
                 return@setOnClickListener
             }
-
+/*
             // 🔸 Validate with SharedPreferences
             if (enteredUser != savedUsername || enteredPass != savedPassword) {
                 showToast("Invalid username or password")
                 return@setOnClickListener
             }
 
+ */
             //  Save selected institute IDs to SharedPreferences
             val instIds = selectedInstitutes.joinToString(",")
 
@@ -168,7 +179,7 @@ class SelectInstituteActivity : AppCompatActivity() {
                     Log.d(TAG, "All data synced and device config stored locally.")
 
                     val allApiCallOk = studentsDataFatchOk && teachersDataFatchOk && subjectsDataFatchOk && deviceDataFatchOk
-
+                    delay(2000)
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = ProgressBar.GONE
                         btnSync.isEnabled = true

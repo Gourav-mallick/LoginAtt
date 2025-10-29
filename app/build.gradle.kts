@@ -105,6 +105,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     implementation("io.ktor:ktor-client-okhttp:2.3.4")
 
+    //work manager depandency
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    // commons-net (for FTP, NTP, etc.)
+    implementation("commons-net:commons-net:3.9.0")
 
 
 

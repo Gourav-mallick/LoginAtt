@@ -54,24 +54,28 @@ class PeriodCourseSelectActivity : ComponentActivity() {
             .putString("SESSION_ID", sessionId)
             .apply()
 
-        setupPeriodDropdown()
+       // setupPeriodDropdown()
         loadCourses()
 
         binding.btnContinue.setOnClickListener {
             handleContinue()
         }
+   /*
         binding.checkboxAddManualCourse.setOnCheckedChangeListener { _, isChecked ->
             binding.inputManualCourseTitle.visibility = if (isChecked) android.view.View.VISIBLE else android.view.View.GONE
         }
 
+    */
     }
 
+    /*
     // 🔹 Predefined period dropdown (later can be dynamic)
     private fun setupPeriodDropdown() {
         val periodList = listOf("1", "2", "3", "4", "5", "6")
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, periodList)
         binding.spinnerPeriod.adapter = adapter
     }
+     */
 
     // 🔹 Load courses from DB
     private fun loadCourses() {
@@ -90,23 +94,25 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
     // 🔹 Handle "Continue" button click
     private fun handleContinue() {
+
+    /*
         val selectedPeriod = binding.spinnerPeriod.selectedItem?.toString()
         if (selectedPeriod.isNullOrEmpty()) {
             Toast.makeText(this, "Please select a period", Toast.LENGTH_SHORT).show()
             return
         }
+     */
 
 
-
-        val isManual = binding.checkboxAddManualCourse.isChecked
-        val manualCourseName = binding.inputManualCourseTitle.text.toString().trim()
+     //   val isManual = binding.checkboxAddManualCourse.isChecked
+      //  val manualCourseName = binding.inputManualCourseTitle.text.toString().trim()
 
 
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(this@PeriodCourseSelectActivity)
             val isMultiClass = selectedClasses.size > 1
 
-
+/*
             if (isManual) {
                 if (manualCourseName.isEmpty()) {
                     Toast.makeText(this@PeriodCourseSelectActivity, "Please enter manual course name", Toast.LENGTH_SHORT).show()
@@ -158,6 +164,8 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
             }
 
+
+ */
             val isMultiCourse = selectedCourseIds.size > 1
             val isNoCourse = selectedCourseIds.isEmpty()
 
@@ -200,11 +208,11 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                                 classShortName = combinedClassShortNames,
                                 mpId = combinedMpIds,
                                 mpLongTitle = combinedMpLongTitles,
-                                period = selectedPeriod
+                                //period = selectedPeriod
                             )
                         }
 
-                        db.sessionDao().updateSessionPeriodAndSubject(sessionId, selectedPeriod, combinedCourseIds)
+                        db.sessionDao().updateSessionPeriodAndSubject(sessionId,  combinedCourseIds)
 
 
 
@@ -249,11 +257,11 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                                 classShortName = courseDetails.classShortName,
                                 mpId = courseDetails.mpId,
                                 mpLongTitle = courseDetails.mpLongTitle,
-                                period = selectedPeriod
+                              //  period = selectedPeriod
                             )
                         }
 
-                        db.sessionDao().updateSessionPeriodAndSubject(sessionId, selectedPeriod, courseId)
+                        db.sessionDao().updateSessionPeriodAndSubject(sessionId,  courseId)
 
                         Toast.makeText(this@PeriodCourseSelectActivity, "single course attendance added successfully", Toast.LENGTH_SHORT).show()
 
