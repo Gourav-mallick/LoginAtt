@@ -269,7 +269,13 @@ interface AttendanceDao {
 
     @Query("UPDATE attendance SET syncStatus = :newStatus WHERE atteId = :atteId")
     suspend fun updateSyncStatus(atteId: String, newStatus: String)
+    // ✅ Get all attendance for a specific session
+    @Query("SELECT * FROM attendance WHERE sessionId = :sessionId")
+    suspend fun getAttendanceBySessionId(sessionId: String): List<Attendance>
 
+    // ✅ Update sync status for all attendance in a session
+    @Query("UPDATE attendance SET syncStatus = :newStatus WHERE sessionId = :sessionId")
+    suspend fun updateSyncStatusBySession(sessionId: String, newStatus: String)
 
 
 }

@@ -164,6 +164,7 @@
                 android:textSize="14sp" />
 
 -->
+
             <TextView
                 android:id="@+id/tvVersion"
                 android:layout_width="wrap_content"

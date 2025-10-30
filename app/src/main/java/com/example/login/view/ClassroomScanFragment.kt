@@ -56,8 +56,8 @@ class ClassroomScanFragment : Fragment() {
 
 
         // Set current date and time
-        val currentDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
-        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+     //   val currentDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+      //  val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
 
        // tvDate.text = "$currentDate"
       //  tvTime.text = "$currentTime"
