@@ -1,6 +1,7 @@
 package com.example.login.view
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -297,13 +298,86 @@ class AttendanceActivity : AppCompatActivity() {
 // ----------------- Scan: Teacher -----------------
     private fun handleTeacherScan(teacherId: String, teacherName: String) {
         lifecycleScope.launch {
+                // ✅ Check if any classroom is active
+                if (currentVisibleClassroomId == null) {
+                    Toast.makeText(
+                        this@AttendanceActivity,
+                        "Teacher: $teacherName\nID: $teacherId\n⚠️ Please scan classroom first to start class.",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    Log.d(TAG, "Teacher scanned without classroom: ID=$teacherId, Name=$teacherName")
+                    return@launch
+                }
+
+
             val classId = currentVisibleClassroomId ?: return@launch
             val cycle = activeClasses[classId] ?: return@launch
+
+
+            if (cycle != null) {
+                // ✅ NEW: If same teacher scans again → check if students were marked
+                if (cycle.teacherId == teacherId && !cycle.sessionId.isNullOrEmpty()) {
+                    val db = AppDatabase.getDatabase(this@AttendanceActivity)
+                    val studentCount = db.attendanceDao()
+                        .getAttendancesForTeacherId(cycle.sessionId!!, teacherId)
+                        .size
+
+                    if (studentCount == 0) {
+                        // 🟢 No students —  Show popup confirmation
+                        AlertDialog.Builder(this@AttendanceActivity)
+                            .setTitle("Close Class?")
+                            .setMessage("No students were marked present.\nDo you want to close this class?")
+                            .setCancelable(false)
+                            .setPositiveButton("Yes") { _, _ ->
+                                lifecycleScope.launch {
+                                    val endTime = SimpleDateFormat("HH:mm", Locale.getDefault())
+                                        .format(getEstimatedCurrentTime())
+
+                                    db.sessionDao().updateSessionEnd(cycle.sessionId!!, endTime)
+
+                                    // 🧹 Clear active class and prefs
+                                    activeClasses.remove(classId)
+                                    currentVisibleClassroomId = null
+                                    getSharedPreferences("AttendancePrefs", MODE_PRIVATE)
+                                        .edit().clear().apply()
+
+                                    Toast.makeText(
+                                        this@AttendanceActivity,
+                                        "Class closed successfully at $endTime",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                    // 🔄 Go back to main attendance screen
+                                    val intent = Intent(this@AttendanceActivity, AttendanceActivity::class.java)
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    startActivity(intent)
+                                    finish()
+                                }
+                            }
+                            .setNegativeButton("No") { dialog, _ ->
+                                dialog.dismiss() // teacher can continue if they want
+                            }
+                            .show()
+
+                    } else {
+                        // 🟠 Students were marked → normal close dialog
+                        showEndClassDialog(classId)
+                        return@launch
+                    }
+                }
+            }
 
             if (cycle.teacherId != null) {
                 Toast.makeText(this@AttendanceActivity, "Teacher already scanned!", Toast.LENGTH_SHORT).show()
                 return@launch
             }
+
+            val prefs = getSharedPreferences("SyncPrefs", MODE_PRIVATE)
+            Log.d("SYNC_DEBUG", "LastSyncTime = ${prefs.getString("last_sync_time", "none")}")
+            Log.d("SYNC_DEBUG", "LastSyncUptime = ${prefs.getLong("last_sync_uptime", 0L)}")
+            Log.d("SYNC_DEBUG", "CurrentUptime = ${SystemClock.elapsedRealtime()}")
+
 
             if (isLastSyncExpired()) {
                 Toast.makeText(this@AttendanceActivity,
@@ -314,9 +388,12 @@ class AttendanceActivity : AppCompatActivity() {
 
 
             val sessionId = UUID.randomUUID().toString()
-            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val estimated = getEstimatedCurrentTime()
+            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(estimated)
+            Log.d("SYNC_DEBUG", "Estimated time: $estimated")
             val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(estimated)
+            Log.d("SYNC_DEBUG", "Start time: $startTime")
+
 
             val session = Session(
                 sessionId = sessionId,
@@ -352,6 +429,19 @@ class AttendanceActivity : AppCompatActivity() {
 // ----------------- Scan: Student -----------------
     private fun handleStudentScan(student: Student) {
         lifecycleScope.launch {
+
+            // ✅ If no classroom started yet
+            if (currentVisibleClassroomId == null) {
+                Toast.makeText(
+                    this@AttendanceActivity,
+                    "Student: ${student.studentName}\nID: ${student.studentId}\n⚠️ Please scan classroom card first.",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                Log.d(TAG, "Student scanned without classroom: ID=${student.studentId}, Name=${student.studentName}")
+                return@launch
+            }
+
             val classId = currentVisibleClassroomId ?: return@launch
             val cycle = activeClasses[classId] ?: return@launch
 
@@ -368,9 +458,10 @@ class AttendanceActivity : AppCompatActivity() {
             }
 
 
-            val timeStamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
-            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            val estimated = getEstimatedCurrentTime()
+            val timeStamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(estimated)
+            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(estimated)
+            val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(estimated)
 
             val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
             val savedInstituteId = prefs.getString("selectedInstituteIds", "")
@@ -418,7 +509,8 @@ class AttendanceActivity : AppCompatActivity() {
             val presentCount = if (!cycle.sessionId.isNullOrEmpty())
                 db.attendanceDao().getAttendancesForClass(cycle.sessionId!!, classId).size else 0
 
-            val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(getEstimatedCurrentTime())
+
             AlertDialog.Builder(this@AttendanceActivity)
                 .setTitle("Close Class: ${cycle.classroomId}")
                 .setMessage("Do you want to close this class?")
@@ -426,6 +518,8 @@ class AttendanceActivity : AppCompatActivity() {
                     lifecycleScope.launch {
                         cycle.sessionId?.let { db.sessionDao().updateSessionEnd(it, currentTime) }
                         cycle.sessionId?.let{db.attendanceDao().updateAttendanceEndTime(it, currentTime)}
+
+                        Log.d("SESSION_END", "Session ${cycle.sessionId} closed at $currentTime")
 
                         val intent = Intent(this@AttendanceActivity, ClassSelectActivity::class.java)
                         intent.putExtra("SESSION_ID", cycle.sessionId)
@@ -468,6 +562,11 @@ class AttendanceActivity : AppCompatActivity() {
     }
 
     private fun checkDeviceTime(onChecked: (() -> Unit)? = null) {
+        if (!isNetworkAvailable()) {
+            onChecked?.invoke() // skip check if offline
+            return
+        }
+
         thread {
             try {
                 val connection = URL("https://google.com").openConnection()
@@ -496,6 +595,13 @@ class AttendanceActivity : AppCompatActivity() {
             }
         }
     }
+
+    private fun isNetworkAvailable(): Boolean {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val net = cm.activeNetworkInfo
+        return net != null && net.isConnected
+    }
+
 
     private fun showTimeMismatchDialog() {
         AlertDialog.Builder(this)
@@ -640,14 +746,14 @@ class AttendanceActivity : AppCompatActivity() {
     private fun getEstimatedCurrentTime(): Date {
         val prefs = getSharedPreferences("SyncPrefs", MODE_PRIVATE)
         val lastSyncStr = prefs.getString("last_sync_time", null) ?: return Date()
+        val lastUptime = prefs.getLong("last_sync_uptime", 0L)
+        if (lastUptime == 0L) return Date()
+
         return try {
             val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault())
             val lastSyncDate = sdf.parse(lastSyncStr) ?: return Date()
-            val now = Date()
-            val diffMillis = now.time - lastSyncDate.time
-            val diffHours = diffMillis / (1000 * 60 * 60)
-            // Add elapsed hours to last sync to estimate
-            Date(lastSyncDate.time + diffHours * 60 * 60 * 1000)
+            val uptimeDiff = SystemClock.elapsedRealtime() - lastUptime
+            Date(lastSyncDate.time + uptimeDiff)
         } catch (e: Exception) {
             Date()
         }
@@ -656,15 +762,13 @@ class AttendanceActivity : AppCompatActivity() {
 
     private fun isLastSyncExpired(): Boolean {
         val prefs = getSharedPreferences("SyncPrefs", MODE_PRIVATE)
-        val lastSyncStr = prefs.getString("last_sync_time", null) ?: return true
-        return try {
-            val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault())
-            val last = sdf.parse(lastSyncStr) ?: return true
-            val hours = (Date().time - last.time) / (1000 * 60 * 60)
-            hours > 24
-        } catch (e: Exception) {
-            true
-        }
+        val lastUptime = prefs.getLong("last_sync_uptime", 0L)
+        if (lastUptime == 0L) return true
+
+        val diffMillis = SystemClock.elapsedRealtime() - lastUptime
+        val diffHours = diffMillis / (1000 * 60 * 60)
+
+        return diffHours > 24
     }
 
 

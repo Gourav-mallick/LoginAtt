@@ -16,8 +16,13 @@ class AutoSyncWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault())
         val formatted = sdf.format(now)
 
-        // Save last sync
-        prefs.edit().putString("last_sync_time", formatted).apply()
+
+        // Save last sync with uptime
+        prefs.edit()
+            .putString("last_sync_time", formatted)
+            .putLong("last_sync_uptime", android.os.SystemClock.elapsedRealtime()) // 👈 must be there
+            .apply()
+
 
         // Optional: network check + sync logic
         if (isNetworkAvailable(applicationContext)) {

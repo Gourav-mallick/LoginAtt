@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -34,6 +35,7 @@ class ClassroomScanFragment : Fragment() {
     private lateinit var tvInstruction: TextView
     private lateinit var btnRefresh: ImageButton
 
+
     companion object {
         fun newInstance() = ClassroomScanFragment()
     }
@@ -49,16 +51,16 @@ class ClassroomScanFragment : Fragment() {
      //   tvSyncStatus.text = "Tap to send attendance.."
 
 
-        val tvDate = view.findViewById<TextView>(R.id.tvDate)
-        val tvTime = view.findViewById<TextView>(R.id.tvTime)
+     //   val tvDate = view.findViewById<TextView>(R.id.tvDate)
+     //   val tvTime = view.findViewById<TextView>(R.id.tvTime)
 
 
         // Set current date and time
         val currentDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
         val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
 
-        tvDate.text = "$currentDate"
-        tvTime.text = "$currentTime"
+       // tvDate.text = "$currentDate"
+      //  tvTime.text = "$currentTime"
 
 
         val prefs = requireContext().getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE)
@@ -67,8 +69,6 @@ class ClassroomScanFragment : Fragment() {
         val lastSync = prefs.getString("last_sync_time", null)
         if (lastSync != null) {
             tvLastSync.text = "Last Sync: $lastSync"
-        } else {
-            tvLastSync.text = "Last Sync: --"
         }
 
 // Listen for broadcast updates
@@ -90,12 +90,22 @@ class ClassroomScanFragment : Fragment() {
 // Optional: show offline hours
         viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
-                val stored = prefs.getString("last_sync_time", null)
-                if (stored != null) {
-                    val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault())
-                    val last = sdf.parse(stored)
-                    val diffHours = ((Date().time - last.time) / (1000 * 60 * 60)).toInt()
-                    tvSyncStatus.text = if (diffHours > 0) "Working offline for $diffHours hrs" else ""
+                val lastUptime = prefs.getLong("last_sync_uptime", 0L)
+                val lastSyncStr = prefs.getString("last_sync_time", null)
+
+                if (lastUptime > 0 && lastSyncStr != null) {
+                    val diffMillis = SystemClock.elapsedRealtime() - lastUptime
+                    val diffHours = (diffMillis / (1000 * 60 * 60)).toInt()
+
+                    if (diffHours >= 24) {
+                        tvLastSync.text = "⚠️ Time expired — please sync"
+                        tvLastSync.setTextColor(android.graphics.Color.RED)
+                    } else {
+                      //  tvSyncStatus.text = "Working offline for $diffHours hrs"
+                       // tvSyncStatus.setTextColor(android.graphics.Color.WHITE)
+                    }
+                } else {
+                   // tvSyncStatus.text = "Last Sync: --"
                 }
                 delay(60_000)
             }

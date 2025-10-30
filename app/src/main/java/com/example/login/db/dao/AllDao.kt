@@ -208,6 +208,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM attendance WHERE sessionId = :sessionId AND classId = :classId")
     suspend fun getAttendancesForClass(sessionId: String, classId: String): List<Attendance>
 
+    @Query("SELECT * FROM attendance WHERE sessionId = :sessionId AND teacherId = :teacherId")
+    suspend fun getAttendancesForTeacherId(sessionId: String, teacherId: String): List<Attendance>
+
 
     @Query("UPDATE attendance SET endTime = :endTime WHERE sessionId = :sessionId")
     suspend fun updateAttendanceEndTime(sessionId: String,  endTime: String)
