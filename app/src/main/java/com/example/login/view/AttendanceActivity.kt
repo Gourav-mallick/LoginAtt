@@ -394,6 +394,9 @@ class AttendanceActivity : AppCompatActivity() {
             val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(estimated)
             Log.d("SYNC_DEBUG", "Start time: $startTime")
 
+            val pref = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
+            val savedInstituteId = pref.getString("selectedInstituteIds", "")
+
 
             val session = Session(
                 sessionId = sessionId,
@@ -405,7 +408,7 @@ class AttendanceActivity : AppCompatActivity() {
                 startTime = startTime,
                 endTime = "",
                 isMerged = 0,
-                instId = "INST001",
+                instId = savedInstituteId!!,
                 syncStatus = "pending"
             )
             Toast.makeText(this@AttendanceActivity, "Using estimated time: $startTime", Toast.LENGTH_SHORT).show()
@@ -473,6 +476,7 @@ class AttendanceActivity : AppCompatActivity() {
                 atteId = AttendanceIdGenerator.nextId(),
                 sessionId = cycle.sessionId!!,
                 studentId = student.studentId,
+                studentName = student.studentName,
                 classId = student.classId,
                 status = "P",
                 markedAt = timeStamp,
@@ -488,6 +492,7 @@ class AttendanceActivity : AppCompatActivity() {
                 teacherName = cycle.teacherName!!,
 
             )
+            Log.d("SYNC_DEBUG_attandance", "Attendance: $attendance")
             db.attendanceDao().insertAttendance(attendance)
             saveCurrentCycle()
             val frag = supportFragmentManager.findFragmentByTag(TAG_STUDENT)

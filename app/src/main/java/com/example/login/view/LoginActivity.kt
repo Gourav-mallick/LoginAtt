@@ -187,8 +187,11 @@ class LoginActivity : AppCompatActivity() {
                                         .putString("baseUrl", baseUrl)
                                         .putString("username", username)
                                         .putString("password", password)
-
+                                        .putString("hash", HASH)
                                         .apply()
+
+                                    Log.d(TAG, "SAVED_LOGIN_DETAILS: baseUrl=$baseUrl, username=$username, password=$password, hash=$HASH")
+
 
                                     // Navigate to SelectInstituteActivity with schoolIds and schoolShortNames
                                     val intent = Intent(

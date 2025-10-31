@@ -27,11 +27,11 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.telephony.TelephonyManager
-import java.net.URLEncoder
 import java.util.*
 import android.os.Build
 import android.provider.Settings
 import com.example.login.R
+import com.example.login.repository.DataSyncRepository
 import com.example.login.utility.CheckNetworkAndInternetUtils
 import com.example.login.utility.TripleDESUtility
 import kotlinx.coroutines.delay
@@ -47,7 +47,7 @@ class SelectInstituteActivity : AppCompatActivity() {
 
     private val selectedInstitutes = mutableSetOf<String>()
     private val TAG = "SELECT_INSTITUTE"
-    private val HASH = "trr36pdthb9xbhcppyqkgbpkq"
+  //  private val HASH = "trr36pdthb9xbhcppyqkgbpkq"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,6 +64,8 @@ class SelectInstituteActivity : AppCompatActivity() {
         val savedUsername = prefs.getString("username", "")
         val savedPassword = prefs.getString("password", "")
         val baseUrl = prefs.getString("baseUrl", "") ?: ""
+        val HASH=prefs.getString("hash", "")
+
 
         // 🔹 Autofill saved credentials
        // edtUsername.setText(savedUsername)
@@ -171,10 +173,11 @@ class SelectInstituteActivity : AppCompatActivity() {
                     val db = AppDatabase.getDatabase(this@SelectInstituteActivity)
 
                     // Call multiple APIs sequentially
-                    // Track success of all steps
-                    val studentsDataFatchOk = fetchAndSaveStudents(apiService, db, normalizedBaseUrl, instIds)
-                    val teachersDataFatchOk = fetchAndSaveTeachers(apiService, db, normalizedBaseUrl, instIds)
-                    val subjectsDataFatchOk = syncSubjectInstances(apiService, db, normalizedBaseUrl, instIds)
+                    val repository = DataSyncRepository(this@SelectInstituteActivity)
+
+                    val studentsDataFatchOk = repository.fetchAndSaveStudents(apiService, db, instIds)
+                    val teachersDataFatchOk = repository.fetchAndSaveTeachers(apiService, db, instIds)
+                    val subjectsDataFatchOk = repository.syncSubjectInstances(apiService, db)
                     val deviceDataFatchOk = fetchDeviceDataToServer(apiService, db, normalizedBaseUrl, instIds)
                     Log.d(TAG, "All data synced and device config stored locally.")
 

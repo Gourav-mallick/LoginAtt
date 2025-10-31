@@ -140,6 +140,8 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
             try {
                 val attendanceList = db.attendanceDao().getAttendanceBySessionId(sessionId)
+              //  Log.d("AttendanceOverview", "Attendance list: $attendanceList")
+
                 if (attendanceList.isEmpty()) {
                     binding.progressBar.visibility = View.GONE
                  //   showPopup("No attendance found for this session.")
@@ -150,7 +152,9 @@ class AttendanceOverviewActivity : ComponentActivity() {
                 // Get baseUrl & hash from SharedPreferences
                 val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
                 val baseUrl = prefs.getString("baseUrl", "https://testvps.digitaledu.in/")!!
-                val hash = "trr36pdthb9xbhcppyqkgbpkq"
+              //  val hash = "trr36pdthb9xbhcppyqkgbpkq"
+                val hash=prefs.getString("hash", "trr36pdthb9xbhcppyqkgbpkq")!!
+
 
                 val apiService = ApiClient.getClient(baseUrl, hash).create(ApiService::class.java)
 
@@ -228,6 +232,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
     private fun mapAttendanceToApiFormat(att: Attendance): JSONObject {
         val date = att.date
+        val year = date.split("-")[0]
         val startTime = att.startTime
         val endTime = att.endTime
         val dataStartTime = "$date $startTime:00"
@@ -237,7 +242,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
             put("studentId", att.studentId)
             put("instId", att.instId)
             put("instShortName", att.instShortName ?: "")
-            put("academicYear",  "2024")
+            put("academicYear",  year)
             put("classId", att.classId)
             put("classShortName", att.classShortName ?: "")
             put("subjectId", att.subjectId ?: "")
@@ -296,6 +301,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
 
         }
+
     }
 
     private fun showPopupWithOk(message: String) {

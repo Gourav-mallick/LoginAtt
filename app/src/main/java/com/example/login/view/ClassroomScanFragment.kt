@@ -10,7 +10,6 @@ import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -19,21 +18,23 @@ import androidx.appcompat.app.AlertDialog
 import android.widget.EditText
 import android.widget.Button
 import androidx.activity.OnBackPressedCallback
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.lifecycle.lifecycleScope
+import com.example.login.api.ApiClient
+import com.example.login.db.dao.AppDatabase
+import com.example.login.repository.DataSyncRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.concurrent.thread
+import kotlinx.coroutines.withContext
+import com.example.login.api.ApiService
 
 
 class ClassroomScanFragment : Fragment() {
 
     private lateinit var tvSyncStatus: TextView
-    private lateinit var tvInstruction: TextView
-    private lateinit var btnRefresh: ImageButton
+
+
 
 
     companion object {
@@ -45,23 +46,6 @@ class ClassroomScanFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         tvSyncStatus = view.findViewById(R.id.tvSyncStatus)
-     //   tvInstruction = view.findViewById(R.id.tvInstruction)
-    //    btnRefresh = view.findViewById(R.id.btnRefresh)
-
-     //   tvSyncStatus.text = "Tap to send attendance.."
-
-
-     //   val tvDate = view.findViewById<TextView>(R.id.tvDate)
-     //   val tvTime = view.findViewById<TextView>(R.id.tvTime)
-
-
-        // Set current date and time
-     //   val currentDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
-      //  val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
-
-       // tvDate.text = "$currentDate"
-      //  tvTime.text = "$currentTime"
-
 
         val prefs = requireContext().getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE)
         val tvLastSync = view.findViewById<TextView>(R.id.tvLastSync)
@@ -69,6 +53,19 @@ class ClassroomScanFragment : Fragment() {
         val lastSync = prefs.getString("last_sync_time", null)
         if (lastSync != null) {
             tvLastSync.text = "Last Sync: $lastSync"
+        }
+
+        // inside onViewCreated
+        val tvManualDataSync = view.findViewById<Button>(R.id.tvManualDataSync)
+        tvManualDataSync.setOnClickListener {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Sync Data")
+                .setMessage("Do you want to sync data from the server and update your local database?")
+                .setPositiveButton("Yes") { _, _ ->
+                    showAuthDialogForSync()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
 
 // Listen for broadcast updates
@@ -112,7 +109,6 @@ class ClassroomScanFragment : Fragment() {
         }
 
 
-        //  tvInstruction.text = "Follow Instruction.."
         // 🔹 Disable back press (both button and gesture)
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
@@ -145,58 +141,100 @@ class ClassroomScanFragment : Fragment() {
 
     }
 
-/*
-    // 🔹 Popup for entering username & password - no use
-    private fun showDialogBoxForCredentials() {
-        val dialogView = layoutInflater.inflate(R.layout.validate_for_sync_data_to_server, null)
-        val edtUserName = dialogView.findViewById<EditText>(R.id.edtUserName)
+
+    private fun showAuthDialogForSync() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_auth_sync, null)
+        val edtUsername = dialogView.findViewById<EditText>(R.id.edtUsername)
         val edtPassword = dialogView.findViewById<EditText>(R.id.edtPassword)
-        val btnSubmit = dialogView.findViewById<Button>(R.id.btnSubmit)
         val btnCancel = dialogView.findViewById<Button>(R.id.btnCancel)
+        val btnSubmit = dialogView.findViewById<Button>(R.id.btnSubmit)
 
         val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogView)
             .setCancelable(false)
             .create()
 
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
         btnSubmit.setOnClickListener {
-            val username = edtUserName.text.toString().trim()
-            val password = edtPassword.text.toString().trim()
+            val enteredUser = edtUsername.text.toString().trim()
+            val enteredPass = edtPassword.text.toString().trim()
+            val prefs = requireContext().getSharedPreferences("LoginPrefs", Context.MODE_PRIVATE)
+            val savedUser = prefs.getString("username", "")
+            val savedPass = prefs.getString("password", "")
 
-            if (username.isEmpty() || password.isEmpty()) {
-                Toast.makeText(requireContext(), "Please enter both fields", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (validateUserCredentials(username, password)) {
+            if (enteredUser == savedUser && enteredPass == savedPass) {
                 dialog.dismiss()
-                Toast.makeText(requireContext(), "Credentials verified!", Toast.LENGTH_SHORT).show()
-
-                // ✅ Navigate to SyncActivity
-                val intent = Intent(requireContext(), SyncAttendanceToServer::class.java)
-                startActivity(intent)
+                showProgressAndSync()
             } else {
-                Toast.makeText(requireContext(), "Invalid username or password", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Invalid credentials!", Toast.LENGTH_SHORT).show()
             }
-        }
-
-        btnCancel.setOnClickListener {
-            dialog.dismiss()
         }
 
         dialog.show()
     }
 
-    // 🔹 Simple validation function using SharedPreferences
-    private fun validateUserCredentials(username: String, password: String): Boolean {
-        val prefs = requireContext().getSharedPreferences("LoginPrefs", Context.MODE_PRIVATE)
-        val savedUsername = prefs.getString("username", "abc") // default username for test
-        val savedPassword = prefs.getString("password", "1234")  // default password for test
 
-        return username == savedUsername && password == savedPassword
+    private fun showProgressAndSync() {
+        val progressDialog = AlertDialog.Builder(requireContext())
+            .setTitle("Syncing Data")
+            .setMessage("Please wait while data is being synced...")
+            .setCancelable(false)
+            .create()
+
+        progressDialog.show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            // Simulate loading delay for 3 seconds (visual feedback)
+            delay(3000)
+
+            val prefs = requireContext().getSharedPreferences("LoginPrefs", Context.MODE_PRIVATE)
+            val baseUrl = prefs.getString("baseUrl", "") ?: ""
+            val instIds = prefs.getString("selectedInstituteIds", "") ?: ""
+            val HASH = "trr36pdthb9xbhcppyqkgbpkq"
+
+            if (baseUrl.isBlank() || instIds.isBlank()) {
+                withContext(Dispatchers.Main) {
+                    progressDialog.dismiss()
+                    Toast.makeText(requireContext(), "Missing institute or URL info", Toast.LENGTH_LONG).show()
+                }
+                return@launch
+            }
+
+            val normalizedBaseUrl = if (baseUrl.endsWith("/")) {
+                baseUrl.removeSuffix("/") + "///"
+            } else {
+                "$baseUrl///"
+            }
+
+            try {
+                val retrofit = ApiClient.getClient(normalizedBaseUrl, HASH)
+                val apiService = retrofit.create(ApiService::class.java)
+                val db = AppDatabase.getDatabase(requireContext())
+                val repository =DataSyncRepository(requireContext())
+
+                val studentsOk = repository.fetchAndSaveStudents(apiService, db, instIds)
+                val teachersOk = repository.fetchAndSaveTeachers(apiService, db, instIds)
+                val subjectsOk = repository.syncSubjectInstances(apiService, db)
+
+                withContext(Dispatchers.Main) {
+                    progressDialog.dismiss()
+                    if (studentsOk && teachersOk && subjectsOk) {
+                        Toast.makeText(requireContext(), " Sync Successful , Data synced and updated in local database.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(requireContext(), "⚠️ Some data failed to sync. Try again.", Toast.LENGTH_LONG).show()
+                    }
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressDialog.dismiss()
+                    Toast.makeText(requireContext(), "❌ Sync failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
- */
 
 
 }
