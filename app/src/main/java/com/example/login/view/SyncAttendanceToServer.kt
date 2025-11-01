@@ -16,6 +16,7 @@ import com.example.login.api.ApiService
 import com.example.login.db.dao.AppDatabase
 import com.example.login.db.entity.Attendance
 import com.example.login.utility.CheckNetworkAndInternetUtils
+import com.example.login.utility.DatabaseCleanupUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,7 +34,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
     private lateinit var apiService: ApiService
     private lateinit var sharedPreferences: SharedPreferences
 
-    private val hash = "trr36pdthb9xbhcppyqkgbpkq"
+   // private val hash = "trr36pdthb9xbhcppyqkgbpkq"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +43,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
 
         db = AppDatabase.Companion.getDatabase(this)
         sharedPreferences = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
+        val hash= sharedPreferences.getString("hash", null)
 
         val baseUrl = sharedPreferences.getString("baseUrl", "https://testvps.digitaledu.in/") ?: ""
      //   val hash = sharedPreferences.getString("HASH_KEY", null)
@@ -175,7 +177,12 @@ class SyncAttendanceToServer : AppCompatActivity(){
                                 // ✅ Server accepted data
                                 pendingList.forEach {
                                     db.attendanceDao().updateSyncStatus(it.atteId, "complete")
+                                    db.sessionDao().updateSessionSyncStatusToComplete(it.sessionId, "complete")
                                 }
+
+                                // Delete only synced attendance
+                                DatabaseCleanupUtils.deleteSyncedAttendances(this@SyncAttendanceToServer)
+                                DatabaseCleanupUtils.deleteSyncedSessions(this@SyncAttendanceToServer)
                                 statusText.text = msg
                                 Toast.makeText(
                                     this@SyncAttendanceToServer,

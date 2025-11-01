@@ -11,6 +11,9 @@ import androidx.fragment.app.Fragment
 import com.example.login.R
 import com.example.login.db.entity.Student
 import androidx.activity.OnBackPressedCallback
+import com.example.login.db.dao.AppDatabase
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 
 class StudentScanFragment : Fragment() {
@@ -26,11 +29,12 @@ class StudentScanFragment : Fragment() {
 
     companion object {
         private const val ARG_TEACHER = "arg_teacher"
+        private const val ARG_SESSION_ID = "arg_session_id"
 
-
-        fun newInstance(teacherName: String) = StudentScanFragment().apply {
+        fun newInstance(teacherName: String,sessionId: String) = StudentScanFragment().apply {
             arguments = Bundle().apply {
                 putString(ARG_TEACHER, teacherName)
+                putString(ARG_SESSION_ID, sessionId)
             }
         }
     }
@@ -69,6 +73,17 @@ class StudentScanFragment : Fragment() {
             })
         // 🔹 Save state that user is currently in StudentScanFragment
       //  saveResumeFlag(requireContext(), true)
+
+
+        val sessionId = arguments?.getString(ARG_SESSION_ID)
+        if (!sessionId.isNullOrEmpty()) {
+            val db = AppDatabase.getDatabase(requireContext())
+            lifecycleScope.launch {
+                val count = db.attendanceDao().getAttendancesForSession(sessionId).size
+                presentCount = count
+                tvPresentCount.text = "$presentCount"
+            }
+        }
     }
 
 

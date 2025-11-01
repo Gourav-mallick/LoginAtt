@@ -46,7 +46,7 @@ class ClassroomScanFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         tvSyncStatus = view.findViewById(R.id.tvSyncStatus)
-
+        val tvUnsubmittedCount = view.findViewById<TextView>(R.id.tvUnsubmittedCount)
         val prefs = requireContext().getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE)
         val tvLastSync = view.findViewById<TextView>(R.id.tvLastSync)
 
@@ -106,6 +106,7 @@ class ClassroomScanFragment : Fragment() {
                 }
                 delay(60_000)
             }
+
         }
 
 

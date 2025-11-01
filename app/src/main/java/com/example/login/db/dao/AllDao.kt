@@ -190,6 +190,13 @@ interface SessionDao {
     suspend fun updateSessionClasses(sessionId: String, classIds: String)
 
 
+    @Query("DELETE FROM Sessions WHERE syncStatus = 'complete'")
+    suspend fun deleteSyncedSessions(): Int
+
+    @Query("UPDATE sessions SET syncStatus = :newStatus WHERE sessionId = :sessionId")
+    suspend fun updateSessionSyncStatusToComplete(sessionId: String, newStatus: String)
+
+
 }
 
 
@@ -276,6 +283,15 @@ interface AttendanceDao {
     // ✅ Update sync status for all attendance in a session
     @Query("UPDATE attendance SET syncStatus = :newStatus WHERE sessionId = :sessionId")
     suspend fun updateSyncStatusBySession(sessionId: String, newStatus: String)
+
+
+
+    @Query("SELECT * FROM Attendance WHERE sessionId = :sessionId")
+    suspend fun getAttendancesForSession(sessionId: String): List<Attendance>
+
+
+    @Query("DELETE FROM Attendance WHERE syncStatus = 'complete'")
+    suspend fun deleteSyncedAttendances(): Int
 
 
 }

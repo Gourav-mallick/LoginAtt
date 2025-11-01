@@ -35,6 +35,7 @@ import com.example.login.utility.AutoSyncWorker
 import java.util.concurrent.TimeUnit
 import android.os.SystemClock
 import android.net.ConnectivityManager
+import com.example.login.db.entity.ActiveClassCycle
 
 class AttendanceActivity : AppCompatActivity() {
 
@@ -58,7 +59,10 @@ class AttendanceActivity : AppCompatActivity() {
         var startedAtMillis: Long = System.currentTimeMillis()
     )
 
-    private val activeClasses = mutableMapOf<String, AttendanceCycle>()
+    private val activeSessions = mutableMapOf<Pair<String, String>, AttendanceCycle>()
+
+    //  Track which teacher is currently active for student scans
+    private var currentTeacherId: String? = null
     private var currentVisibleClassroomId: String? = null
     private var isTimeValid = false
 
@@ -244,184 +248,180 @@ class AttendanceActivity : AppCompatActivity() {
     // ----------------- Scan: Classroom -----------------
     private fun handleClassScan(classroomId: String, classroomName: String) {
         lifecycleScope.launch {
-            val existing = activeClasses[classroomId]
+            // 🔹 Check if this classroom already has any active sessions (any teacher)
+            val existingForClass = activeSessions.keys.any { it.first == classroomId }
 
-            if (existing == null) {
-                // 🔹 Start new cycle
+            if (!existingForClass) {
+                // ✅ Start a new classroom cycle (no active session yet)
                 val cycle = AttendanceCycle(classroomId, classroomName)
-                activeClasses[classroomId] = cycle
+                // Note: No teacher yet, teacher will scan next.
                 currentVisibleClassroomId = classroomId
-                Toast.makeText(this@AttendanceActivity, "Class started: $classroomId", Toast.LENGTH_SHORT).show()
 
+                Toast.makeText(
+                    this@AttendanceActivity,
+                    "Classroom ready: $classroomName. Please scan teacher card.",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                // Go to teacher scan fragment
                 val frag = TeacherScanFragment.newInstance(classroomId)
                 supportFragmentManager.beginTransaction()
                     .replace(R.id.fragment_container, frag, TAG_TEACHER)
                     .commitAllowingStateLoss()
             } else {
-                //  If same class → end popup
-                if (currentVisibleClassroomId == classroomId) {
+
+                // classroom card not for close we comment this part
+
+           /*
+                // 🔹 A class already exists in this classroom
+
+                val activeForThisClass = activeSessions.filterKeys { it.first == classroomId }
+
+                // If currently visible classroom is the same → ask to close the visible teacher’s class
+                if (currentVisibleClassroomId == classroomId && currentTeacherId != null) {
                     showEndClassDialog(classroomId)
                     return@launch
                 }
 
-                //  Resume existing class
-                currentVisibleClassroomId = classroomId
-                if (!existing.sessionId.isNullOrEmpty()) {
-                    Toast.makeText(this@AttendanceActivity, "Resuming ${existing.classroomId}", Toast.LENGTH_SHORT).show()
-                    val frag = StudentScanFragment.newInstance(existing.teacherName ?: "")
+                // Otherwise, resume the first teacher’s active session
+                val firstCycle = activeForThisClass.values.firstOrNull()
+                if (firstCycle != null) {
+                    currentVisibleClassroomId = classroomId
+                    currentTeacherId = firstCycle.teacherId
+
+                    Toast.makeText(
+                        this@AttendanceActivity,
+                        "Resuming ${firstCycle.classroomName} (Teacher: ${firstCycle.teacherName})",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    val frag = StudentScanFragment.newInstance(firstCycle.teacherName ?: "")
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fragment_container, frag, TAG_STUDENT)
                         .commitAllowingStateLoss()
                 } else {
-                    val frag = TeacherScanFragment.newInstance(existing.classroomId)
+                    // If somehow no session found, show teacher scan again
+                    val frag = TeacherScanFragment.newInstance(classroomId)
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fragment_container, frag, TAG_TEACHER)
                         .commitAllowingStateLoss()
                 }
+
+            */
+                // ✅ Just show info that classroom is already active
+                Toast.makeText(
+                    this@AttendanceActivity,
+                    "Classroom $classroomName already assigned. Scan teacher card to continue.",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
 
-    private suspend fun existsIncompleteCycleBlockingNew(newClassroomId: String): Boolean {
-        val db = AppDatabase.getDatabase(this@AttendanceActivity)
-        for ((id, cycle) in activeClasses) {
-            if (id == newClassroomId) continue
-            if (!cycle.sessionId.isNullOrEmpty()) {
-                val count = db.attendanceDao().getAttendancesForClass(cycle.sessionId!!, cycle.classroomId).size
-                if (count == 0) return true
-            }
-        }
-        return false
-    }
 
 
 // ----------------- Scan: Teacher -----------------
-    private fun handleTeacherScan(teacherId: String, teacherName: String) {
+private fun handleTeacherScan(teacherId: String, teacherName: String) {
+    lifecycleScope.launch {
+
+        // Make sure a classroom is active first
+        val classroomId = currentVisibleClassroomId
+        if (classroomId.isNullOrEmpty()) {
+            Toast.makeText(
+                this@AttendanceActivity,
+                "Please scan a classroom card first.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return@launch
+        }
+
+        val db = AppDatabase.getDatabase(this@AttendanceActivity)
+        val key = Pair(classroomId, teacherId)
+
+        // Check if this teacher already has an active session
+        val activeCycle = activeSessions[key]
+        val existingDbSession = getActiveSession(classroomId, teacherId)
+
+        // 🧩 CASE 1: Teacher already has active session in memory or DB
+        if (activeCycle != null || (existingDbSession != null && !existingDbSession.sessionId.isNullOrEmpty())) {
+            // If teacher is currently visible → ask to close
+            val resumedSessionId = activeCycle?.sessionId ?: existingDbSession?.sessionId ?: ""
+
+            if (currentTeacherId == teacherId) {
+                showEndClassDialog(classroomId)  // ask to close
+                return@launch
+            } else {
+                // Resume their own paused session
+                currentTeacherId = teacherId
+                Toast.makeText(this@AttendanceActivity, "Resuming your session...", Toast.LENGTH_SHORT).show()
+                val frag = StudentScanFragment.newInstance(teacherName,resumedSessionId)
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragment_container, frag, TAG_STUDENT)
+                    .commitAllowingStateLoss()
+                return@launch
+            }
+        }
+
+        // 🧩 CASE 2: No active session yet — start new one
+
+        val isSwitchingTeacher = !currentTeacherId.isNullOrEmpty() && currentTeacherId != teacherId
+
+        if (isSwitchingTeacher) {
+            AlertDialog.Builder(this@AttendanceActivity)
+                .setTitle("New Session Started")
+                .setMessage("Starting new session for $teacherName")
+                .setCancelable(false)
+                .setPositiveButton("OK") { dialog, _ ->
+                    dialog.dismiss()
+                    startNewTeacherSession(teacherId, teacherName, classroomId)
+                }
+                .show()
+        } else {
+            // First teacher — start directly without popup
+            startNewTeacherSession(teacherId, teacherName, classroomId)
+        }
+
+    }
+}
+
+    private fun startNewTeacherSession(teacherId: String, teacherName: String, classId: String) {
         lifecycleScope.launch {
-                // ✅ Check if any classroom is active
-                if (currentVisibleClassroomId == null) {
-                    Toast.makeText(
-                        this@AttendanceActivity,
-                        "Teacher: $teacherName\nID: $teacherId\n⚠️ Please scan classroom first to start class.",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    Log.d(TAG, "Teacher scanned without classroom: ID=$teacherId, Name=$teacherName")
-                    return@launch
-                }
-
-
-            val classId = currentVisibleClassroomId ?: return@launch
-            val cycle = activeClasses[classId] ?: return@launch
-
-
-            if (cycle != null) {
-                // ✅ NEW: If same teacher scans again → check if students were marked
-                if (cycle.teacherId == teacherId && !cycle.sessionId.isNullOrEmpty()) {
-                    val db = AppDatabase.getDatabase(this@AttendanceActivity)
-                    val studentCount = db.attendanceDao()
-                        .getAttendancesForTeacherId(cycle.sessionId!!, teacherId)
-                        .size
-
-                    if (studentCount == 0) {
-                        // 🟢 No students —  Show popup confirmation
-                        AlertDialog.Builder(this@AttendanceActivity)
-                            .setTitle("Close Class?")
-                            .setMessage("No students were marked present.\nDo you want to close this class?")
-                            .setCancelable(false)
-                            .setPositiveButton("Yes") { _, _ ->
-                                lifecycleScope.launch {
-                                    val endTime = SimpleDateFormat("HH:mm", Locale.getDefault())
-                                        .format(getEstimatedCurrentTime())
-
-                                    db.sessionDao().updateSessionEnd(cycle.sessionId!!, endTime)
-
-                                    // 🧹 Clear active class and prefs
-                                    activeClasses.remove(classId)
-                                    currentVisibleClassroomId = null
-                                    getSharedPreferences("AttendancePrefs", MODE_PRIVATE)
-                                        .edit().clear().apply()
-
-                                    Toast.makeText(
-                                        this@AttendanceActivity,
-                                        "Class closed successfully at $endTime",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-
-                                    // 🔄 Go back to main attendance screen
-                                    val intent = Intent(this@AttendanceActivity, AttendanceActivity::class.java)
-                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    startActivity(intent)
-                                    finish()
-                                }
-                            }
-                            .setNegativeButton("No") { dialog, _ ->
-                                dialog.dismiss() // teacher can continue if they want
-                            }
-                            .show()
-
-                    } else {
-                        // 🟠 Students were marked → normal close dialog
-                        showEndClassDialog(classId)
-                        return@launch
-                    }
-                }
-            }
-
-            if (cycle.teacherId != null) {
-                Toast.makeText(this@AttendanceActivity, "Teacher already scanned!", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-
-            val prefs = getSharedPreferences("SyncPrefs", MODE_PRIVATE)
-            Log.d("SYNC_DEBUG", "LastSyncTime = ${prefs.getString("last_sync_time", "none")}")
-            Log.d("SYNC_DEBUG", "LastSyncUptime = ${prefs.getLong("last_sync_uptime", 0L)}")
-            Log.d("SYNC_DEBUG", "CurrentUptime = ${SystemClock.elapsedRealtime()}")
-
-
-            if (isLastSyncExpired()) {
-                Toast.makeText(this@AttendanceActivity,
-                    "Last sync older than 24 hours. Please connect to network to sync time.",
-                    Toast.LENGTH_LONG).show()
-                return@launch
-            }
-
-
+            val db = AppDatabase.getDatabase(this@AttendanceActivity)
             val sessionId = UUID.randomUUID().toString()
             val estimated = getEstimatedCurrentTime()
-            val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(estimated)
-            Log.d("SYNC_DEBUG", "Estimated time: $estimated")
             val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(estimated)
-            Log.d("SYNC_DEBUG", "Start time: $startTime")
-
-            val pref = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
-            val savedInstituteId = pref.getString("selectedInstituteIds", "")
-
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(estimated)
+            val instId = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
+                .getString("selectedInstituteIds", "") ?: ""
 
             val session = Session(
                 sessionId = sessionId,
-                periodId = "",
+                classId = classId,
                 teacherId = teacherId,
-                classId = "",
                 subjectId = "",
-                date = currentDate,
+                date = date,
                 startTime = startTime,
                 endTime = "",
                 isMerged = 0,
-                instId = savedInstituteId!!,
-                syncStatus = "pending"
+                instId = instId,
+                syncStatus = "pending",
+                periodId = ""
             )
-            Toast.makeText(this@AttendanceActivity, "Using estimated time: $startTime", Toast.LENGTH_SHORT).show()
-
-
-            val db = AppDatabase.getDatabase(this@AttendanceActivity)
             db.sessionDao().insertSession(session)
 
-            cycle.teacherId = teacherId
-            cycle.teacherName = teacherName
-            cycle.sessionId = sessionId
+            val newCycle = AttendanceCycle(
+                classroomId = classId,
+                classroomName = classId,
+                teacherId = teacherId,
+                teacherName = teacherName,
+                sessionId = sessionId
+            )
 
-            val frag = StudentScanFragment.newInstance(teacherName)
+            activeSessions[Pair(classId, teacherId)] = newCycle
+            saveActiveSession(newCycle)
+            currentTeacherId = teacherId
+
+            val frag = StudentScanFragment.newInstance(teacherName, sessionId)
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, frag, TAG_STUDENT)
                 .commitAllowingStateLoss()
@@ -429,7 +429,8 @@ class AttendanceActivity : AppCompatActivity() {
     }
 
 
-// ----------------- Scan: Student -----------------
+
+    // ----------------- Scan: Student -----------------
     private fun handleStudentScan(student: Student) {
         lifecycleScope.launch {
 
@@ -445,8 +446,16 @@ class AttendanceActivity : AppCompatActivity() {
                 return@launch
             }
 
-            val classId = currentVisibleClassroomId ?: return@launch
-            val cycle = activeClasses[classId] ?: return@launch
+            val classroomId = currentVisibleClassroomId ?: return@launch
+            val teacherId = currentTeacherId ?: run {
+                Toast.makeText(this@AttendanceActivity, "Please scan teacher card first!", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val cycle = activeSessions[Pair(classroomId, teacherId)] ?: run {
+                Toast.makeText(this@AttendanceActivity, "No active session found for this teacher!", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
 
             if (cycle.sessionId.isNullOrEmpty()) {
                 Toast.makeText(this@AttendanceActivity, "Scan teacher first!", Toast.LENGTH_SHORT).show()
@@ -502,17 +511,18 @@ class AttendanceActivity : AppCompatActivity() {
 
     // ---------------- End / Submit class ----------------
     private fun showEndClassDialogForVisibleClass() {
-        val classId = currentVisibleClassroomId ?: return
-        showEndClassDialog(classId)
+        val classroomId = currentVisibleClassroomId ?: return
+        showEndClassDialog(classroomId)
     }
 
     // ----------------- End Class -----------------
-    private fun showEndClassDialog(classId: String) {
-        val cycle = activeClasses[classId] ?: return
+    private fun showEndClassDialog(classroomId: String) {
+        val teacherId = currentTeacherId ?: return
+        val cycle = activeSessions[Pair(classroomId, teacherId)] ?: return
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(this@AttendanceActivity)
             val presentCount = if (!cycle.sessionId.isNullOrEmpty())
-                db.attendanceDao().getAttendancesForClass(cycle.sessionId!!, classId).size else 0
+                db.attendanceDao().getAttendancesForClass(cycle.sessionId!!, classroomId).size else 0
 
             val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(getEstimatedCurrentTime())
 
@@ -524,13 +534,21 @@ class AttendanceActivity : AppCompatActivity() {
                         cycle.sessionId?.let { db.sessionDao().updateSessionEnd(it, currentTime) }
                         cycle.sessionId?.let{db.attendanceDao().updateAttendanceEndTime(it, currentTime)}
 
+                        // remove from ActiveClassCycle table
+                        removeActiveSession(classroomId, teacherId)
+                        activeSessions.remove(Pair(classroomId, teacherId))
+
+
+
+
                         Log.d("SESSION_END", "Session ${cycle.sessionId} closed at $currentTime")
 
                         val intent = Intent(this@AttendanceActivity, ClassSelectActivity::class.java)
                         intent.putExtra("SESSION_ID", cycle.sessionId)
                         intent.putExtra("TEACHER_ID", cycle.teacherId)
                         startActivity(intent)
-                        activeClasses.remove(classId)
+                        activeSessions.remove(Pair(classroomId, teacherId))
+
                         currentVisibleClassroomId = null
                     }
                 }
@@ -625,73 +643,78 @@ class AttendanceActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("AttendancePrefs", MODE_PRIVATE)
         val editor = prefs.edit()
 
-        val classId = currentVisibleClassroomId
-        if (classId != null) {
-            val cycle = activeClasses[classId]
+        val classroomId = currentVisibleClassroomId
+        val teacherId = currentTeacherId
+
+        if (classroomId != null && teacherId != null) {
+            val cycle = activeSessions[Pair(classroomId, teacherId)]
             if (cycle != null) {
-                editor.putString("classId", cycle.classroomId)
-                editor.putString("className", cycle.classroomName)
+                editor.putString("classroomId", cycle.classroomId)
+                editor.putString("classroomName", cycle.classroomName)
                 editor.putString("teacherId", cycle.teacherId)
                 editor.putString("teacherName", cycle.teacherName)
                 editor.putString("sessionId", cycle.sessionId)
                 editor.apply()
+                Log.d(TAG, "Saved current cycle: class=$classroomId teacher=$teacherId session=${cycle.sessionId}")
             }
+        } else {
+            Log.d(TAG, "No active classroom/teacher to save.")
         }
     }
 
 
     private fun restoreLastCycleIfExists() {
         val prefs = getSharedPreferences("AttendancePrefs", MODE_PRIVATE)
-        val classId = prefs.getString("classId", null)
+        val classroomId = prefs.getString("classroomId", null)
         val sessionId = prefs.getString("sessionId", null)
-        val className = prefs.getString("className", null)
+        val className = prefs.getString("classroomName", null)
         val teacherId = prefs.getString("teacherId", null)
         val teacherName = prefs.getString("teacherName", null)
 
-        // No previous cycle saved
-        if (classId.isNullOrEmpty() || sessionId.isNullOrEmpty()) {
+        // 🔹 Check if valid data exists
+        if (classroomId.isNullOrEmpty() || sessionId.isNullOrEmpty() || teacherId.isNullOrEmpty()) {
             Log.d(TAG, "No previous attendance cycle found to restore.")
             return
         }
 
-        // ✅ Recreate the previous attendance cycle
+        // 🔹 Recreate the previous attendance cycle object
         val cycle = AttendanceCycle(
-            classroomId = classId,
+            classroomId = classroomId,
             classroomName = className ?: "",
             teacherId = teacherId,
             teacherName = teacherName,
             sessionId = sessionId
         )
-        activeClasses[classId] = cycle
-        currentVisibleClassroomId = classId
-        Log.d(TAG, "Restoring last cycle for class: $classId, session: $sessionId")
 
-        // ✅ Make sure the ClassroomScanFragment exists (inflate it if missing)
-        var classroomFragment =
-            supportFragmentManager.findFragmentByTag("CLASSROOM") as? ClassroomScanFragment
+        // 🔹 Restore in memory
+        activeSessions[Pair(classroomId, teacherId)] = cycle
+        currentVisibleClassroomId = classroomId
+        currentTeacherId = teacherId
+
+        Log.d(TAG, "Restoring last cycle for class: $classroomId, teacher=$teacherId, session=$sessionId")
+
+        // 🔹 Inflate ClassroomScanFragment (for resume UI)
+        var classroomFragment = supportFragmentManager.findFragmentByTag("CLASSROOM") as? ClassroomScanFragment
         if (classroomFragment == null) {
             classroomFragment = ClassroomScanFragment.newInstance()
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, classroomFragment, "CLASSROOM")
-                .commitNow() // commitNow ensures view is available immediately
+                .commitNow()
         } else {
             supportFragmentManager.executePendingTransactions()
         }
 
-        // ✅ Safely access the fragment's resume info layout
+        // 🔹 Restore UI info
         val fragView = classroomFragment.view
         val layout = fragView?.findViewById<LinearLayout>(R.id.layoutResumeInfo)
         val tvClass = fragView?.findViewById<TextView>(R.id.tvResumeClass)
         val tvTeacher = fragView?.findViewById<TextView>(R.id.tvResumeTeacher)
         val tvStudents = fragView?.findViewById<TextView>(R.id.tvResumeStudents)
 
-        // ✅ Load attendance count asynchronously and update UI
         lifecycleScope.launch {
             try {
                 val db = AppDatabase.getDatabase(this@AttendanceActivity)
-                val studentCount = db.attendanceDao()
-                    .getAttendancesForClass(sessionId, classId)
-                    .size
+                val studentCount = db.attendanceDao().getAttendancesForClass(sessionId, classroomId).size
 
                 runOnUiThread {
                     layout?.visibility = View.VISIBLE
@@ -712,38 +735,67 @@ class AttendanceActivity : AppCompatActivity() {
         }
     }
 
+
     private fun restorePendingSessions() {
         lifecycleScope.launch {
             try {
                 val db = AppDatabase.getDatabase(this@AttendanceActivity)
                 val sessions = db.sessionDao().getAllSessions()
+
+                // 🔹 Loop through all sessions that are still open (no endTime)
                 sessions.filter { it.endTime.isNullOrEmpty() }.forEach { s ->
-                    if (!activeClasses.containsKey(s.classId)) {
-                        val classObj = db.classDao().getClassById(s.classId)
-                        val classShort = classObj?.classShortName ?: s.classId
-                        activeClasses[s.classId] = AttendanceCycle(
+                    val classObj = db.classDao().getClassById(s.classId)
+                    val classShort = classObj?.classShortName ?: s.classId
+                    val teacherId = s.teacherId ?: return@forEach
+                    val key = Pair(s.classId, teacherId)
+
+                    if (!activeSessions.containsKey(key)) {
+                        val restoredCycle = AttendanceCycle(
                             classroomId = s.classId,
                             classroomName = classShort,
-                            teacherId = s.teacherId,
+                            teacherId = teacherId,
                             teacherName = "",
                             sessionId = s.sessionId
                         )
-                        Log.d(TAG, "Restored pending session: ${s.sessionId} for class ${s.classId}")
+                        activeSessions[key] = restoredCycle
+
+                        // 🔹 Store in ActiveClassCycle table (DB persistence)
+                        db.activeClassCycleDao().insert(
+                            ActiveClassCycle(
+                                classroomId = s.classId,
+                                classroomName = classShort,
+                                teacherId = teacherId,
+                                teacherName = "",
+                                sessionId = s.sessionId,
+                                startedAtMillis = System.currentTimeMillis()
+                            )
+                        )
+
+                        Log.d(TAG, "Restored pending session: ${s.sessionId} for class ${s.classId} (teacher $teacherId)")
                     }
                 }
 
-                // 🔹 Auto-resume last ongoing class
-                if (activeClasses.isNotEmpty()) {
-                    val first = activeClasses.values.first()
+                // 🔹 Auto-resume first available class on UI
+                if (activeSessions.isNotEmpty()) {
+                    val first = activeSessions.values.first()
                     currentVisibleClassroomId = first.classroomId
-                    val frag = StudentScanFragment.newInstance(first.teacherName ?: "")
+                    currentTeacherId = first.teacherId
+
+                    val frag = StudentScanFragment.newInstance(first.teacherName ?: "", first.sessionId ?: "")
+
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fragment_container, frag, "STUDENT")
                         .commitAllowingStateLoss()
-                    Toast.makeText(this@AttendanceActivity, "Resumed class: ${first.classroomId}", Toast.LENGTH_SHORT).show()
+
+                    Toast.makeText(
+                        this@AttendanceActivity,
+                        "Resumed class: ${first.classroomId} (teacher ${first.teacherId})",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+
             } catch (e: Exception) {
-                Log.e(TAG, "Error restoring sessions: ${e.message}")
+                Log.e(TAG, "Error restoring sessions: ${e.message}", e)
             }
         }
     }
@@ -774,6 +826,41 @@ class AttendanceActivity : AppCompatActivity() {
         val diffHours = diffMillis / (1000 * 60 * 60)
 
         return diffHours > 24
+    }
+
+
+
+
+    // ✅ Fetch active session from DB
+    // ✅ Fetch active session from DB
+    private suspend fun getActiveSession(classId: String, teacherId: String): ActiveClassCycle? {
+        val db = AppDatabase.getDatabase(this)
+        return db.activeClassCycleDao().getAll()
+            .find { it.classroomId == classId && it.teacherId == teacherId }
+    }
+
+    // ✅ Save active session to DB
+    private suspend fun saveActiveSession(cycle: AttendanceCycle) {
+        val db = AppDatabase.getDatabase(this)
+        db.activeClassCycleDao().insert(
+            ActiveClassCycle(
+                classroomId = cycle.classroomId,
+                classroomName = cycle.classroomName,
+                teacherId = cycle.teacherId,
+                teacherName = cycle.teacherName,
+                sessionId = cycle.sessionId,
+                startedAtMillis = cycle.startedAtMillis
+            )
+        )
+    }
+
+    // ✅ Remove active session from DB
+    private suspend fun removeActiveSession(classId: String, teacherId: String?) {
+        val db = AppDatabase.getDatabase(this)
+        val all = db.activeClassCycleDao().getAll()
+        all.find { it.classroomId == classId && it.teacherId == teacherId }?.let {
+            db.activeClassCycleDao().delete(it)
+        }
     }
 
 

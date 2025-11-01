@@ -19,6 +19,7 @@ import com.example.login.api.ApiClient
 import com.example.login.api.ApiService
 import com.example.login.db.entity.Attendance
 import com.example.login.utility.CheckNetworkAndInternetUtils
+import com.example.login.utility.DatabaseCleanupUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -116,24 +117,6 @@ class AttendanceOverviewActivity : ComponentActivity() {
     private fun submitAttendanceForSession() {
         lifecycleScope.launch {
 
-/*
-            val hasNetwork = CheckNetworkAndInternetUtils.isNetworkAvailable(this@AttendanceOverviewActivity)
-            if (!hasNetwork) {
-                    showPopup("No internet connection. Attendance saved locally, will sync later.")
-                return@launch
-            }
-
-            // ✅ Step 2: Check if real internet access exists
-            val hasInternet =withContext(Dispatchers.IO) {
-                CheckNetworkAndInternetUtils.hasInternetAccess()
-            }
-
-            if (!hasInternet) {
-                    showPopup("No internet connection. Attendance saved locally, will sync later.")
-                return@launch
-            }
-
- */
             // Show spinner
             binding.progressBar.visibility = View.VISIBLE
             delay(2000) // show for 2s
@@ -196,12 +179,18 @@ class AttendanceOverviewActivity : ComponentActivity() {
                         val msg = apiMsgArray?.optString(0) ?: "Attendance synced successfully"
 
                         if (apiStatus.equals("SUCCESS", ignoreCase = true)) {
-                            // ✅ Mark attendance as synced
+                            // Delete Attandance records from DB & Session if it succesfully sent to sserver
                             db.attendanceDao().updateSyncStatusBySession(sessionId, "complete")
+                            db.sessionDao().updateSessionSyncStatusToComplete(sessionId, "complete")
+
+                            DatabaseCleanupUtils.deleteSyncedAttendances(this@AttendanceOverviewActivity)
+                            DatabaseCleanupUtils.deleteSyncedSessions(this@AttendanceOverviewActivity)
 
                             withContext(Dispatchers.Main) {
                                 showPopupWithOk(msg)
                             }
+
+
                         } else {
                             withContext(Dispatchers.Main) {
                                 showPopupWithOk("Attendance saved locally. You can sync later.")

@@ -133,6 +133,22 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/tvHeader" />
 
+
+        <TextView
+            android:id="@+id/tvUnsubmittedCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:gravity="center"
+            android:visibility="gone"
+            android:text="Pending Unsubmitted Classes: 0"
+            android:textColor="#D32F2F"
+            android:textSize="16sp"
+            app:layout_constraintBottom_toTopOf="@+id/layoutDateTimeVersion"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.383"
+            app:layout_constraintStart_toStartOf="parent" />
+
         <LinearLayout
             android:id="@+id/layoutDateTimeVersion"
             android:layout_width="match_parent"
