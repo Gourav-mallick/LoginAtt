@@ -28,12 +28,20 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.login.api.ApiService
+import com.example.login.db.entity.Session
 
 
 class ClassroomScanFragment : Fragment() {
 
     private lateinit var tvSyncStatus: TextView
 
+    private val updateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "UPDATE_UNSUBMITTED_COUNT") {
+                refreshUnsubmittedSessions()
+            }
+        }
+    }
 
 
 
@@ -107,7 +115,22 @@ class ClassroomScanFragment : Fragment() {
                 delay(60_000)
             }
 
+
+
         }
+
+        // 🕓 Show count of unsubmitted (active) sessions
+        refreshUnsubmittedSessions()
+
+// 🔔 Listen for broadcast to refresh count after session ends
+        val updateFilter = IntentFilter("UPDATE_UNSUBMITTED_COUNT")
+        @Suppress("UnspecifiedRegisterReceiverFlag")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requireContext().registerReceiver(updateReceiver, updateFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            requireContext().registerReceiver(updateReceiver, updateFilter)
+        }
+
 
 
         // 🔹 Disable back press (both button and gesture)
@@ -142,6 +165,12 @@ class ClassroomScanFragment : Fragment() {
 
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        try {
+            requireContext().unregisterReceiver(updateReceiver)
+        } catch (_: Exception) {}
+    }
 
     private fun showAuthDialogForSync() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_auth_sync, null)
@@ -236,7 +265,49 @@ class ClassroomScanFragment : Fragment() {
         }
     }
 
+    private fun refreshUnsubmittedSessions() {
+        val tvUnsubmittedCount = view?.findViewById<TextView>(R.id.tvUnsubmittedCount) ?: return
 
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(requireContext())
+                val openSessions = db.sessionDao().getAllSessions()
+                    .filter { it.endTime.isNullOrEmpty() }
+
+                if (openSessions.isNotEmpty()) {
+                    tvUnsubmittedCount.visibility = View.VISIBLE
+                    tvUnsubmittedCount.text = "🕓 Pending Unsubmitted Sessions: ${openSessions.size}"
+
+                    // 🔹 Add click listener to show details
+                    tvUnsubmittedCount.setOnClickListener {
+                        showUnsubmittedSessionPopup(openSessions)
+                    }
+                } else {
+                    tvUnsubmittedCount.visibility = View.GONE
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+
+    private fun showUnsubmittedSessionPopup(openSessions: List<Session>) {
+        if (openSessions.isEmpty()) return
+
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setTitle(" Unsubmitted Sessions")
+
+        // Build readable teacher list
+        val message = StringBuilder()
+        openSessions.forEachIndexed { index, session ->
+            message.append("${index + 1}. TeacherId: ${session.teacherId}\n\n")
+        }
+
+        builder.setMessage(message.toString().trim())
+        builder.setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+        builder.show()
+    }
 
 }
 

@@ -35,6 +35,8 @@ import com.example.login.utility.AutoSyncWorker
 import java.util.concurrent.TimeUnit
 import android.os.SystemClock
 import android.net.ConnectivityManager
+import android.os.Handler
+import android.os.Looper
 import com.example.login.db.entity.ActiveClassCycle
 
 class AttendanceActivity : AppCompatActivity() {
@@ -327,6 +329,27 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
         // Make sure a classroom is active first
         val classroomId = currentVisibleClassroomId
         if (classroomId.isNullOrEmpty()) {
+            //  Show popup with teacher details
+            val dialog = AlertDialog.Builder(this@AttendanceActivity)
+                .setTitle("Teacher Card Details")
+                .setMessage(
+                            "NAME : $teacherName\n" +
+                            "ID : $teacherId\n"
+                )
+                .setCancelable(false)
+                .setPositiveButton("OK") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .create()
+            dialog.show()
+
+            // 🕒 Auto-dismiss after 3 seconds (3000 ms)
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (dialog.isShowing) {
+                    dialog.dismiss()
+                }
+            }, 2000)
+
             Toast.makeText(
                 this@AttendanceActivity,
                 "Please scan a classroom card first.",
@@ -371,9 +394,13 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
                 .setTitle("New Session Started")
                 .setMessage("Starting new session for $teacherName")
                 .setCancelable(false)
-                .setPositiveButton("OK") { dialog, _ ->
+                .setPositiveButton("Yes") { dialog, _ ->
                     dialog.dismiss()
                     startNewTeacherSession(teacherId, teacherName, classroomId)
+                }
+                .setNegativeButton("No") { dialog, _ ->
+                    //  Just close dialog and stay on current activity
+                    dialog.dismiss()
                 }
                 .show()
         } else {
@@ -434,11 +461,32 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
     private fun handleStudentScan(student: Student) {
         lifecycleScope.launch {
 
-            // ✅ If no classroom started yet
+            // ✅ If no classroom started yet show student card details
             if (currentVisibleClassroomId == null) {
+
+                val dialog =AlertDialog.Builder(this@AttendanceActivity)
+                    .setTitle("Students Card Details")
+                    .setMessage(
+                        "NAME : ${student.studentName}\n" +
+                        "ID   : ${student.studentId}\n"
+                    )
+                    .setCancelable(false)
+                    .setPositiveButton("OK") { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .create()
+                dialog.show()
+
+                // 🕒 Auto-dismiss after 3 seconds (3000 ms)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (dialog.isShowing) {
+                        dialog.dismiss()
+                    }
+                }, 2000)
+
                 Toast.makeText(
                     this@AttendanceActivity,
-                    "Student: ${student.studentName}\nID: ${student.studentId}\n⚠️ Please scan classroom card first.",
+                    "Please scan classroom card Or Teacher card first.",
                     Toast.LENGTH_LONG
                 ).show()
 
@@ -537,6 +585,10 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
                         // remove from ActiveClassCycle table
                         removeActiveSession(classroomId, teacherId)
                         activeSessions.remove(Pair(classroomId, teacherId))
+
+
+                        val broadcastIntent  = Intent("UPDATE_UNSUBMITTED_COUNT")
+                        sendBroadcast(broadcastIntent )
 
 
 
