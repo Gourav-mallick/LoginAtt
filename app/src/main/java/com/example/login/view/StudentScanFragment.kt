@@ -14,6 +14,9 @@ import androidx.activity.OnBackPressedCallback
 import com.example.login.db.dao.AppDatabase
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import androidx.appcompat.app.AlertDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 class StudentScanFragment : Fragment() {
@@ -89,7 +92,6 @@ class StudentScanFragment : Fragment() {
 
     /**
      * Call this method when a student card is scanned.
-     * Logic same as before: increment count, update last scanned, update instruction
      */
     fun addStudent(student: Student): Boolean {
         // Optional: prevent duplicate student scans

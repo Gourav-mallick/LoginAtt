@@ -294,6 +294,17 @@ interface AttendanceDao {
     suspend fun deleteSyncedAttendances(): Int
 
 
+    @Query("""
+    SELECT COUNT(*) FROM Attendance 
+    WHERE studentId = :studentId
+    AND sessionId IN (
+        SELECT sessionId FROM sessions
+        WHERE (endTime IS NULL OR endTime = '') AND sessionId != :currentSessionId
+    )
+""")
+    suspend fun countActiveAttendancesForStudent(studentId: String, currentSessionId: String): Int
+
+
 }
 
 

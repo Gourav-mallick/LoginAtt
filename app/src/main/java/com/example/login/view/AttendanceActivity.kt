@@ -511,11 +511,25 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
             }
 
             val db = AppDatabase.getDatabase(this@AttendanceActivity)
+            // 🔹 Already marked in this session?
             val existing = db.attendanceDao().getAttendanceForStudentInSession(cycle.sessionId!!, student.studentId)
             if (existing != null) {
                 Toast.makeText(this@AttendanceActivity, "${student.studentName} already marked!", Toast.LENGTH_SHORT).show()
                 return@launch
             }
+
+
+            // 🔹  Prevent student from joining another open session
+            val currentSessionId = cycle.sessionId!!
+            val alreadyActive = db.attendanceDao()
+                .countActiveAttendancesForStudent(student.studentId, currentSessionId)
+
+            if (alreadyActive > 0) {
+                Toast.makeText(this@AttendanceActivity, "You are already marked present in another ongoing class.", Toast.LENGTH_LONG).show()
+                return@launch
+            }
+
+
 
 
             val estimated = getEstimatedCurrentTime()

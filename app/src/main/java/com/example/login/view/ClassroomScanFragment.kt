@@ -92,7 +92,7 @@ class ClassroomScanFragment : Fragment() {
         }
 
 
-// Optional: show offline hours
+     // show offline hours
         viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
                 val lastUptime = prefs.getLong("last_sync_uptime", 0L)
