@@ -35,18 +35,32 @@
             app:layout_constraintTop_toTopOf="parent"
             android:layout_marginBottom="8dp" />
 
-        <!-- 🔹 Scrollable List Area -->
+        <!-- 🔹 Search Bar (now ABOVE list) -->
+        <SearchView
+            android:id="@+id/searchInstitute"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:queryHint="Search by name or ID"
+            android:iconifiedByDefault="false"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/search_bg"
+            android:padding="6dp" />
+
+        <!-- 🔹 Scrollable List Area (now BELOW SearchView) -->
         <ScrollView
             android:id="@+id/instituteScrollView"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:overScrollMode="ifContentScrolls"
-            app:layout_constraintTop_toBottomOf="@id/tvTitle"
+            app:layout_constraintTop_toBottomOf="@id/searchInstitute"
             app:layout_constraintBottom_toTopOf="@id/btnLogin"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="10dp">
 
             <LinearLayout
                 android:id="@+id/instituteSelectionLayout"
@@ -68,7 +82,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- 🔹 Sync Button (fixed at bottom) -->
+        <!-- 🔹 Sync Button -->
         <Button
             android:id="@+id/btnLogin"
             android:layout_width="0dp"
@@ -78,10 +92,10 @@
             android:textColor="#FFFFFF"
             android:textStyle="bold"
             android:textAllCaps="false"
-            android:layout_marginTop="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="8dp" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

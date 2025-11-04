@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "login"
+rootProject.name = "rfid-attendance"
 include(":app")
  

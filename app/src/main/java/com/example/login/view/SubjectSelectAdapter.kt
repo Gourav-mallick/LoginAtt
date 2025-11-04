@@ -7,10 +7,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.login.databinding.ItemCourseCheckboxBinding
 import com.example.login.db.entity.Course
 
-class CourseMultiSelectAdapter(
+class SubjectSelectAdapter(
     private val courseList: List<Course>,
     private val onSelectionChanged: (List<String>) -> Unit
-) : RecyclerView.Adapter<CourseMultiSelectAdapter.CourseViewHolder>() {
+) : RecyclerView.Adapter<SubjectSelectAdapter.CourseViewHolder>() {
 
     private val selectedCourses = mutableSetOf<String>()
 

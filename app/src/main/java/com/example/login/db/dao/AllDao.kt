@@ -69,6 +69,8 @@ interface TeachersDao {
     @Query("SELECT * FROM teachers")
     suspend fun getAllTeachers(): List<Teacher>
 
+    @Query("SELECT staffName FROM teachers WHERE staffId = :teacherId")
+    suspend fun getTeacherNameById(teacherId: String): String?
 
     @Query("""
     SELECT * FROM teachers 
@@ -303,6 +305,11 @@ interface AttendanceDao {
     )
 """)
     suspend fun countActiveAttendancesForStudent(studentId: String, currentSessionId: String): Int
+
+
+    @Query("SELECT * FROM attendance WHERE syncStatus = :status")
+    suspend fun getPendingAttendancesByStatus(status: String): List<Attendance>
+
 
 
 }

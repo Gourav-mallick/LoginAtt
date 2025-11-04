@@ -82,7 +82,7 @@ class ClassSelectActivity : ComponentActivity() {
                     .apply()
 
                 // 🔹 Navigate next
-                val intent = Intent(this@ClassSelectActivity, PeriodCourseSelectActivity::class.java)
+                val intent = Intent(this@ClassSelectActivity, SubjectSelectActivity::class.java)
                 intent.putExtra("SESSION_ID", sessionId)
                 intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClassIds))
                 startActivity(intent)

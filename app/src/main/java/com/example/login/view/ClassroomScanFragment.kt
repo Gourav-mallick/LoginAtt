@@ -44,13 +44,15 @@ class ClassroomScanFragment : Fragment() {
     }
 
 
-
     companion object {
         fun newInstance() = ClassroomScanFragment()
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?)
-            = inflater.inflate(R.layout.fragment_classroom_scan, container, false)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ) = inflater.inflate(R.layout.fragment_classroom_scan, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         tvSyncStatus = view.findViewById(R.id.tvSyncStatus)
@@ -92,7 +94,7 @@ class ClassroomScanFragment : Fragment() {
         }
 
 
-     // show offline hours
+        // show offline hours
         viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
                 val lastUptime = prefs.getLong("last_sync_uptime", 0L)
@@ -106,15 +108,14 @@ class ClassroomScanFragment : Fragment() {
                         tvLastSync.text = "⚠️ Time expired — please sync"
                         tvLastSync.setTextColor(android.graphics.Color.RED)
                     } else {
-                      //  tvSyncStatus.text = "Working offline for $diffHours hrs"
-                       // tvSyncStatus.setTextColor(android.graphics.Color.WHITE)
+                        //  tvSyncStatus.text = "Working offline for $diffHours hrs"
+                        // tvSyncStatus.setTextColor(android.graphics.Color.WHITE)
                     }
                 } else {
-                   // tvSyncStatus.text = "Last Sync: --"
+                    // tvSyncStatus.text = "Last Sync: --"
                 }
                 delay(60_000)
             }
-
 
 
         }
@@ -126,11 +127,14 @@ class ClassroomScanFragment : Fragment() {
         val updateFilter = IntentFilter("UPDATE_UNSUBMITTED_COUNT")
         @Suppress("UnspecifiedRegisterReceiverFlag")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requireContext().registerReceiver(updateReceiver, updateFilter, Context.RECEIVER_NOT_EXPORTED)
+            requireContext().registerReceiver(
+                updateReceiver,
+                updateFilter,
+                Context.RECEIVER_NOT_EXPORTED
+            )
         } else {
             requireContext().registerReceiver(updateReceiver, updateFilter)
         }
-
 
 
         // 🔹 Disable back press (both button and gesture)
@@ -169,7 +173,8 @@ class ClassroomScanFragment : Fragment() {
         super.onDestroyView()
         try {
             requireContext().unregisterReceiver(updateReceiver)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun showAuthDialogForSync() {
@@ -226,7 +231,11 @@ class ClassroomScanFragment : Fragment() {
             if (baseUrl.isBlank() || instIds.isBlank()) {
                 withContext(Dispatchers.Main) {
                     progressDialog.dismiss()
-                    Toast.makeText(requireContext(), "Missing institute or URL info", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        requireContext(),
+                        "Missing institute or URL info",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
                 return@launch
             }
@@ -241,7 +250,7 @@ class ClassroomScanFragment : Fragment() {
                 val retrofit = ApiClient.getClient(normalizedBaseUrl, HASH)
                 val apiService = retrofit.create(ApiService::class.java)
                 val db = AppDatabase.getDatabase(requireContext())
-                val repository =DataSyncRepository(requireContext())
+                val repository = DataSyncRepository(requireContext())
 
                 val studentsOk = repository.fetchAndSaveStudents(apiService, db, instIds)
                 val teachersOk = repository.fetchAndSaveTeachers(apiService, db, instIds)
@@ -250,16 +259,28 @@ class ClassroomScanFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     progressDialog.dismiss()
                     if (studentsOk && teachersOk && subjectsOk) {
-                        Toast.makeText(requireContext(), " Sync Successful , Data synced and updated in local database.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            requireContext(),
+                            " Sync Successful , Data synced and updated in local database.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     } else {
-                        Toast.makeText(requireContext(), "⚠️ Some data failed to sync. Try again.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            requireContext(),
+                            "⚠️ Some data failed to sync. Try again.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
 
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     progressDialog.dismiss()
-                    Toast.makeText(requireContext(), "❌ Sync failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        requireContext(),
+                        "❌ Sync failed: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
@@ -276,7 +297,7 @@ class ClassroomScanFragment : Fragment() {
 
                 if (openSessions.isNotEmpty()) {
                     tvUnsubmittedCount.visibility = View.VISIBLE
-                    tvUnsubmittedCount.text = "🕓 Pending Unsubmitted Sessions: ${openSessions.size}"
+                    tvUnsubmittedCount.text = "🕓 Unsubmitted Sessions: ${openSessions.size}"
 
                     // 🔹 Add click listener to show details
                     tvUnsubmittedCount.setOnClickListener {
@@ -296,18 +317,28 @@ class ClassroomScanFragment : Fragment() {
         if (openSessions.isEmpty()) return
 
         val builder = AlertDialog.Builder(requireContext())
-        builder.setTitle(" Unsubmitted Sessions")
+        builder.setTitle("Unsubmitted Sessions")
 
-        // Build readable teacher list
-        val message = StringBuilder()
-        openSessions.forEachIndexed { index, session ->
-            message.append("${index + 1}. TeacherId: ${session.teacherId}\n\n")
+        // Use coroutine to safely call suspend DAO method
+        viewLifecycleOwner.lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(requireContext())
+            val message = StringBuilder()
+
+            for ((index, session) in openSessions.withIndex()) {
+                val teacherId = session.teacherId ?: "N/A"
+                val teacherName = withContext(Dispatchers.IO) {
+                    db.teachersDao().getTeacherNameById(teacherId)
+                } ?: "Unknown"
+
+                message.append("${index + 1}. ID-$teacherId : $teacherName\n\n")
+            }
+
+            withContext(Dispatchers.Main) {
+                builder.setMessage(message.toString().trim())
+                builder.setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+                builder.show()
+            }
         }
-
-        builder.setMessage(message.toString().trim())
-        builder.setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
-        builder.show()
     }
-
 }
 

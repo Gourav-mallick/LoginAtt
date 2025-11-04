@@ -1,6 +1,6 @@
 package com.example.login.view
 
-import android.content.Context
+
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,9 +14,7 @@ import androidx.activity.OnBackPressedCallback
 import com.example.login.db.dao.AppDatabase
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import androidx.appcompat.app.AlertDialog
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+
 
 
 class StudentScanFragment : Fragment() {
@@ -81,10 +79,14 @@ class StudentScanFragment : Fragment() {
         val sessionId = arguments?.getString(ARG_SESSION_ID)
         if (!sessionId.isNullOrEmpty()) {
             val db = AppDatabase.getDatabase(requireContext())
+
             lifecycleScope.launch {
                 val count = db.attendanceDao().getAttendancesForSession(sessionId).size
                 presentCount = count
                 tvPresentCount.text = "$presentCount"
+                tvTeacherName.text = "$teacher"
+
+
             }
         }
     }

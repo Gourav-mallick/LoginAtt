@@ -60,18 +60,19 @@ class SyncAttendanceToServer : AppCompatActivity(){
         val statusText = findViewById<TextView>(R.id.tvSyncStatus)
 
         lifecycleScope.launch(Dispatchers.IO) {
-
             withContext(Dispatchers.Main) {
                 progressBar.visibility = View.VISIBLE
                 statusText.text = "Checking network..."
             }
 
-            // Step 1: Check if any network is available
+            // Step 1: Check network
             val hasNetwork = CheckNetworkAndInternetUtils.isNetworkAvailable(this@SyncAttendanceToServer)
-            if (!hasNetwork) {
+            val hasInternet = CheckNetworkAndInternetUtils.hasInternetAccess()
+
+            if (!hasNetwork || !hasInternet) {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    statusText.text = " No network connection."
+                    statusText.text = "No internet connection."
                     Toast.makeText(
                         this@SyncAttendanceToServer,
                         "Please connect to Wi-Fi or Mobile data.",
@@ -81,155 +82,101 @@ class SyncAttendanceToServer : AppCompatActivity(){
                 return@launch
             }
 
-        // ✅ Step 2: Check if real internet access exists
-            val hasInternet = CheckNetworkAndInternetUtils.hasInternetAccess()
-            if (!hasInternet) {
-                withContext(Dispatchers.Main) {
-                    progressBar.visibility = View.GONE
-                    statusText.text = "️ No internet access."
-                    Toast.makeText(
-                        this@SyncAttendanceToServer,
-                        "Internet not reachable. Try again.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-                return@launch
-            }
-
             withContext(Dispatchers.Main) {
-                progressBar.visibility = View.VISIBLE
-                statusText.text = "Syncing attendance..."
+                statusText.text = "Fetching pending sessions..."
             }
 
             try {
-                val pendingList = db.attendanceDao().getPendingAttendances()
+                //  Only get attendance with syncStatus = "pending"
+                val pendingList = db.attendanceDao().getPendingAttendancesByStatus("pending")
 
                 if (pendingList.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = View.GONE
                         statusText.text = "No pending attendance to sync."
-                        Toast.makeText(
-                            this@SyncAttendanceToServer,
-                            "No pending attendance",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                     return@launch
                 }
 
-                // 🔹 Group pending attendance by class and count present students
-                val classCounts = pendingList
-                    .groupBy { it.classId ?: "Unknown Class" }
-                    .mapValues { (_, list) -> list.count { it.status == "P" } }
+                // Group by sessionId
+                val groupedBySession = pendingList.groupBy { it.sessionId }
+                val totalSessions = groupedBySession.size
+                var currentSession = 1
 
-                  // 🔹 Prepare summary text
-                val summary = classCounts.entries.joinToString("\n") {
-                    "Class :${it.key}: Present Students - ${it.value}"
-                }
+                //  Sync each session one by one
+                for ((sessionId, sessionAttendances) in groupedBySession) {
 
-               // 🔹 Show on Toast
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@SyncAttendanceToServer,
-                        summary.ifEmpty { "No attendance data found" },
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-
-                val attArray = JSONArray()
-                for (att in pendingList) attArray.put(mapAttendanceToApiFormat(att))
-
-                val requestBodyJson = JSONObject().apply {
-                    put("attParamDataObj", JSONObject().apply {
-                        put("attDataArr", attArray)
-                        put("attAttachmentArr", JSONArray())
-                        put("attendanceMethod", "periodDayWiseAttendance")
-                        put("loggedInUsrId", "1")
-                    })
-                }
-                val jsonString = requestBodyJson.toString()
-                Log.d("SYNC_JSON", jsonString)
-                val response = sendToServer(jsonString)
+                    // Double-check session sync status before sending
+                    val session = db.sessionDao().getSessionById(sessionId)
+                    if (session != null && session.syncStatus == "complete") {
+                        Log.d("SYNC_SESSION", "Skipping already synced session $sessionId")
+                        continue
+                    }
 
 
-                withContext(Dispatchers.Main) {
-                    progressBar.visibility = View.GONE
-                    if (response.isSuccessful && response.body() != null) {
+                    withContext(Dispatchers.Main) {
+                        statusText.text = "Syncing session $currentSession of $totalSessions..."
+                    }
 
-                        withContext(Dispatchers.Main) {
-                            statusText.text = "Processing response..."
-                        }
+                    val attArray = JSONArray()
+                    for (att in sessionAttendances) {
+                        attArray.put(mapAttendanceToApiFormat(att))
+                    }
 
-                        // Add delay (e.g., 2 seconds)
-                        kotlinx.coroutines.delay(2000)
+                    val requestBodyJson = JSONObject().apply {
+                        put("attParamDataObj", JSONObject().apply {
+                            put("attDataArr", attArray)
+                            put("attAttachmentArr", JSONArray())
+                            put("attendanceMethod", "periodDayWiseAttendance")
+                            put("loggedInUsrId", "1")
+                        })
+                    }
+                    Log.d("SYNC_REQUEST_server", requestBodyJson.toString())
 
-                        val bodyString = response.body()!!.string()
-                        Log.d("SYNC_RESPONSE", bodyString)
 
-                        try {
+                    val jsonString = requestBodyJson.toString()
+                    val response = sendToServer(jsonString)
+
+                    withContext(Dispatchers.Main) {
+                        if (response.isSuccessful && response.body() != null) {
+                            val bodyString = response.body()!!.string()
                             val json = JSONObject(bodyString)
                             val collection = json.optJSONObject("collection")
                             val responseObj = collection?.optJSONObject("response")
                             val apiStatus = responseObj?.optString("status", "FAILED") ?: "FAILED"
-                            val apiMsgArray = responseObj?.optJSONArray("msgAr")
-                            val msg = apiMsgArray?.optString(0) ?: "Attendance synced successfully"
+
                             if (apiStatus.equals("SUCCESS", ignoreCase = true)) {
-                                // ✅ Server accepted data
-                                pendingList.forEach {
-                                    db.attendanceDao().updateSyncStatus(it.atteId, "complete")
-                                    db.sessionDao().updateSessionSyncStatusToComplete(it.sessionId, "complete")
-                                }
+                                db.attendanceDao().updateSyncStatusBySession(sessionId, "complete")
+                                db.sessionDao().updateSessionSyncStatusToComplete(sessionId, "complete")
 
-                                // Delete only synced attendance
-                                DatabaseCleanupUtils.deleteSyncedAttendances(this@SyncAttendanceToServer)
-                                DatabaseCleanupUtils.deleteSyncedSessions(this@SyncAttendanceToServer)
-                                statusText.text = msg
-                                Toast.makeText(
-                                    this@SyncAttendanceToServer,
-                                    "Server accepted sync!",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                statusText.text = " Session $currentSession synced successfully!"
+                                Log.d("SYNC_SESSION", "Session $sessionId synced OK")
                             } else {
-                                //  Server rejected data
-                                val errorMsg = if (apiMsgArray != null && apiMsgArray.length() > 0)
-                                    apiMsgArray.join(", ")
-                                else
-                                    "Server reported failure"
-
-                                statusText.text = "⚠️ Sync failed"
-                                Toast.makeText(
-                                    this@SyncAttendanceToServer,
-                                    "Sync failed: $errorMsg",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                statusText.text = "⚠ Session $currentSession failed to sync!"
+                                Log.e("SYNC_SESSION", "Session $sessionId failed!")
                             }
-                        } catch (e: Exception) {
-                            statusText.text = " Invalid server response"
-                            Toast.makeText(
-                                this@SyncAttendanceToServer,
-                                "Response parsing error: ${e.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
+                        } else {
+                            statusText.text = " Network error for session $currentSession"
                         }
-                    } else {
-                        statusText.text = "❌ Network error }"
-                        Toast.makeText(
-                            this@SyncAttendanceToServer,
-                            "HTTP Error ${response.code()}",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
 
+                    currentSession++
+                    kotlinx.coroutines.delay(1000) // Optional: short delay between sessions
                 }
+
+                // 🧹 Cleanup
+                DatabaseCleanupUtils.deleteSyncedAttendances(this@SyncAttendanceToServer)
+                DatabaseCleanupUtils.deleteSyncedSessions(this@SyncAttendanceToServer)
+
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    statusText.text = " All sessions synced successfully!"
+                }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    statusText.text = "Error: ${e.localizedMessage}"
-                    Toast.makeText(
-                        this@SyncAttendanceToServer,
-                        "Error: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    statusText.text = "❌ Error: ${e.message}"
                 }
             }
         }
@@ -251,7 +198,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
         val date=att.date
         val startTime=att.startTime
         val endtime=att.endTime
-
+        val year = date.split("-")[0]
         val dataStartTime="$date $startTime:00"
 
         val dataEndTime="$date $endtime:00"
@@ -260,7 +207,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
             put("studentId", att.studentId)
             put("instId", att.instId)
             put("instShortName", att.instShortName ?: "")
-            put("academicYear",  "2024")
+            put("academicYear",  year)
             put("classId", att.classId)
             put("classShortName", att.classShortName ?: "")
             put("subjectId", att.subjectId ?: "")
@@ -316,8 +263,6 @@ class SyncAttendanceToServer : AppCompatActivity(){
             put("toRemoveCoLecturerCpIds","")
             put("toAddCoLecturerCpIds","")
             put("status","A")
-
-
         }
     }
 }

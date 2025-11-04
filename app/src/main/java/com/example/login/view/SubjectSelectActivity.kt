@@ -4,7 +4,6 @@ package com.example.login.view
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -16,7 +15,7 @@ import kotlinx.coroutines.launch
 
 
 
-class PeriodCourseSelectActivity : ComponentActivity() {
+class SubjectSelectActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityPeriodCourseSelectBinding
     private lateinit var db: AppDatabase
@@ -39,7 +38,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
         val backCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 Toast.makeText(
-                    this@PeriodCourseSelectActivity,
+                    this@SubjectSelectActivity,
                     "Back disabled on this screen",
                     Toast.LENGTH_SHORT
                 ).show()
@@ -82,12 +81,12 @@ class PeriodCourseSelectActivity : ComponentActivity() {
         lifecycleScope.launch {
             val courses = db.courseDao().getAllCourses()
 
-            val adapter = CourseMultiSelectAdapter(courses) { selectedIds ->
+            val adapter = SubjectSelectAdapter(courses) { selectedIds ->
                 selectedCourseIds.clear()
                 selectedCourseIds.addAll(selectedIds)
             }
 
-            binding.recyclerViewCourses.layoutManager = LinearLayoutManager(this@PeriodCourseSelectActivity)
+            binding.recyclerViewCourses.layoutManager = LinearLayoutManager(this@SubjectSelectActivity)
             binding.recyclerViewCourses.adapter = adapter
         }
     }
@@ -109,7 +108,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
 
         lifecycleScope.launch {
-            val db = AppDatabase.getDatabase(this@PeriodCourseSelectActivity)
+            val db = AppDatabase.getDatabase(this@SubjectSelectActivity)
             val isMultiClass = selectedClasses.size > 1
 
 /*
@@ -173,7 +172,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                 when {
                     //  CASE 1 / 2C — No course selected → Manual subject instance
                     isNoCourse -> {
-                        Toast.makeText(this@PeriodCourseSelectActivity, "Please select or add a course", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@SubjectSelectActivity, "Please select or add a course", Toast.LENGTH_SHORT).show()
                     }
 
                     //  CASE 1B / 2B — Multiple courses selected
@@ -181,7 +180,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         val courseDetails = db.courseDao().getCourseDetailsForIds(selectedCourseIds)
 
                         if (courseDetails.isEmpty()) {
-                            Toast.makeText(this@PeriodCourseSelectActivity, "No course details found", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@SubjectSelectActivity, "No course details found", Toast.LENGTH_SHORT).show()
                             return@launch
                         }
 
@@ -216,7 +215,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
 
 
-                        Toast.makeText(this@PeriodCourseSelectActivity, "Maltiple course added successfully", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@SubjectSelectActivity, "Maltiple course added successfully", Toast.LENGTH_SHORT).show()
 
                         // 🔹 Clear resume flag when proceeding
                         getSharedPreferences("APP_STATE", MODE_PRIVATE)
@@ -226,7 +225,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                             .apply()
 
 
-                        val intent = Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
+                        val intent = Intent(this@SubjectSelectActivity, AttendanceOverviewActivity::class.java)
                         intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
                         intent.putExtra("SESSION_ID", sessionId)
                         startActivity(intent)
@@ -241,7 +240,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                         val courseDetails = db.courseDao().getCourseDetailsForIds(listOf(courseId)).firstOrNull()
 
                         if (courseDetails == null) {
-                            Toast.makeText(this@PeriodCourseSelectActivity, "Course details not found", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@SubjectSelectActivity, "Course details not found", Toast.LENGTH_SHORT).show()
                             return@launch
                         }
 
@@ -263,7 +262,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
                         db.sessionDao().updateSessionPeriodAndSubject(sessionId,  courseId)
 
-                        Toast.makeText(this@PeriodCourseSelectActivity, "single course attendance added successfully", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@SubjectSelectActivity, "single course attendance added successfully", Toast.LENGTH_SHORT).show()
 
                         // 🔹 Clear resume flag when proceeding
                         getSharedPreferences("APP_STATE", MODE_PRIVATE)
@@ -273,7 +272,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
                             .apply()
 
 
-                        val intent = Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
+                        val intent = Intent(this@SubjectSelectActivity, AttendanceOverviewActivity::class.java)
                         intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
                         intent.putExtra("SESSION_ID", sessionId)
                         startActivity(intent)
@@ -294,7 +293,7 @@ class PeriodCourseSelectActivity : ComponentActivity() {
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@PeriodCourseSelectActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SubjectSelectActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }

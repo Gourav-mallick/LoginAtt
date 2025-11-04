@@ -3,8 +3,6 @@ package com.example.login.view
 import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -18,7 +16,6 @@ import androidx.activity.OnBackPressedCallback
 import com.example.login.api.ApiClient
 import com.example.login.api.ApiService
 import com.example.login.db.entity.Attendance
-import com.example.login.utility.CheckNetworkAndInternetUtils
 import com.example.login.utility.DatabaseCleanupUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -89,7 +86,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
                     attendance.any { it.studentId == s.studentId && it.status == "P" }
                 }.map { it.studentName }
 
-           */
+          */
 
 
                 classSummaries.add(
@@ -134,9 +131,9 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
                 // Get baseUrl & hash from SharedPreferences
                 val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
-                val baseUrl = prefs.getString("baseUrl", "https://testvps.digitaledu.in/")!!
+                val baseUrl = prefs.getString("baseUrl", "")!!
               //  val hash = "trr36pdthb9xbhcppyqkgbpkq"
-                val hash=prefs.getString("hash", "trr36pdthb9xbhcppyqkgbpkq")!!
+                val hash=prefs.getString("hash", "")!!
 
 
                 val apiService = ApiClient.getClient(baseUrl, hash).create(ApiService::class.java)
@@ -155,6 +152,8 @@ class AttendanceOverviewActivity : ComponentActivity() {
                         put("loggedInUsrId", "1")
                     })
                 }
+
+                Log.d("SYNC_REQUEST", requestBodyJson.toString())
 
                 val mediaType = MediaType.parse("application/json; charset=utf-8")
                 val requestBody = RequestBody.create(mediaType, requestBodyJson.toString())
@@ -179,7 +178,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
                         val msg = apiMsgArray?.optString(0) ?: "Attendance synced successfully"
 
                         if (apiStatus.equals("SUCCESS", ignoreCase = true)) {
-                            // Delete Attandance records from DB & Session if it succesfully sent to sserver
+                            // Delete Attendance records from DB & Session if it successfully sent to server
                             db.attendanceDao().updateSyncStatusBySession(sessionId, "complete")
                             db.sessionDao().updateSessionSyncStatusToComplete(sessionId, "complete")
 
@@ -251,7 +250,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
             // You can extend more mappings as per your actual backend requirement
             put("studentClass", att.classShortName ?: "")
             put("attCodetitle", "present")
-            put("courseSelectionMode","mandatory")
+            put("courseSelectionMode","")
             put("stfId",att.teacherId)
             put("stfFML","")
             put("studId",att.studentId)
@@ -288,7 +287,6 @@ class AttendanceOverviewActivity : ComponentActivity() {
             put("toAddCoLecturerCpIds","")
             put("status","A")
 
-
         }
 
     }
@@ -307,8 +305,6 @@ class AttendanceOverviewActivity : ComponentActivity() {
             }
             .show()
     }
-
-
 
 }
 

@@ -30,6 +30,7 @@ import android.telephony.TelephonyManager
 import java.util.*
 import android.os.Build
 import android.provider.Settings
+import android.view.View
 import com.example.login.R
 import com.example.login.repository.DataSyncRepository
 import com.example.login.utility.CheckNetworkAndInternetUtils
@@ -58,6 +59,8 @@ class SelectInstituteActivity : AppCompatActivity() {
    //     edtPassword = findViewById(R.id.passwordtap)
         btnSync = findViewById(R.id.btnLogin)
         progressBar = findViewById(R.id.progressBar)
+        // SearchView
+        val searchInstitute = findViewById<SearchView>(R.id.searchInstitute)
 
         // 🔹 Get shared preferences
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
@@ -75,6 +78,9 @@ class SelectInstituteActivity : AppCompatActivity() {
         val schoolIds = intent.getStringArrayListExtra("schoolIds") ?: arrayListOf()
         val schoolShortNames = intent.getStringArrayListExtra("schoolShortNames") ?: arrayListOf()
 
+        // store all views for filtering
+        val allInstituteViews = mutableListOf<View>()
+
         // 🔹 Dynamically create checkbox list
         for (i in schoolIds.indices) {
             val view = layoutInflater.inflate(R.layout.item_institute, instituteSelectionLayout, false)
@@ -91,7 +97,25 @@ class SelectInstituteActivity : AppCompatActivity() {
             }
 
             instituteSelectionLayout.addView(view)
+            allInstituteViews.add(view)
         }
+
+        //  Search filter logic
+        searchInstitute.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean = false
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                val query = newText?.trim()?.lowercase(Locale.getDefault()) ?: ""
+                for (view in allInstituteViews) {
+                    val name = view.findViewById<TextView>(R.id.tvSchoolShortName).text.toString().lowercase(Locale.getDefault())
+                    val idText = view.findViewById<TextView>(R.id.tvSchoolId).text.toString().lowercase(Locale.getDefault())
+
+                    // Match if query is part of name or ID
+                    view.visibility = if (name.contains(query) || idText.contains(query)) View.VISIBLE else View.GONE
+                }
+                return true
+            }
+        })
 
         // 🔹 Sync button click
         btnSync.setOnClickListener {
