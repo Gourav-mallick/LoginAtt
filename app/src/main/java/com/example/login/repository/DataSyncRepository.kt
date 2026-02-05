@@ -20,39 +20,69 @@ class DataSyncRepository(private val context: Context) {
         db: AppDatabase,
         instIds: String
     ): Boolean = withContext(Dispatchers.IO) {
+
         val rParam = "api/v1/StudentEnrollment/GetStudList"
-        val dataParam = "{\"studListParamData\":{\"actionType\":\"FingerPrint\",\"school_id\":\"$instIds\"}}"
-        val response = apiService.getStudents(rParam, dataParam)
 
-        if (response.isSuccessful && response.body() != null) {
-            val jsonString = response.body()!!.string()
-            val json = JSONObject(jsonString)
-            val collection = json.optJSONObject("collection")
-            val responseObj = collection?.optJSONObject("response")
-            val dataArray = responseObj?.optJSONArray("studentData") ?: JSONArray()
+        val studentsList = mutableListOf<Student>()
+        val classList = mutableListOf<Class>()
 
-            val studentsList = mutableListOf<Student>()
-            val classList = mutableListOf<Class>()
+        // 🔹 Split multiple institute IDs
+        val instList = instIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-            for (i in 0 until dataArray.length()) {
-                val obj = dataArray.getJSONObject(i)
-                val studentId = obj.optString("studentId", "")
-                val studentName = obj.optString("studentName", "")
-                val classId = obj.optString("classId", "")
-                val classShortName = obj.optString("classShortName", "")
-                val instId = obj.optString("instId", "")
-                studentsList.add(Student(studentId, studentName, classId, instId))
-                classList.add(Class(classId, classShortName))
+        for (instId in instList) {
+
+            val dataParam =
+                "{\"studListParamData\":{\"actionType\":\"FingerPrint\",\"school_id\":\"$instId\"}}"
+
+            val response = apiService.getStudents(rParam, dataParam)
+
+            if (response.isSuccessful && response.body() != null) {
+
+                val jsonString = response.body()!!.string()
+                val json = JSONObject(jsonString)
+                val collection = json.optJSONObject("collection")
+                val responseObj = collection?.optJSONObject("response")
+                val dataArray = responseObj?.optJSONArray("studentData") ?: JSONArray()
+
+                Log.d(TAG, "INST=$instId → students=${dataArray.length()}")
+
+                for (i in 0 until dataArray.length()) {
+                    val obj = dataArray.getJSONObject(i)
+
+                    val studentId = obj.optString("studentId", "")
+                    val studentName = obj.optString("studentName", "")
+                    val classId = obj.optString("classId", "")
+                    val classShortName = obj.optString("classShortName", "")
+
+                    // 🔹 Assign institute from loop (IMPORTANT)
+                    studentsList.add(
+                        Student(
+                            studentId,
+                            studentName,
+                            classId,
+                            instId
+                        )
+                    )
+                    Log.d(
+                        TAG,
+                        "TEACHER_PARSED → id=$studentId, name=$studentName,classid=$classId instId=$instId"
+                    )
+
+                    classList.add(Class(classId, classShortName))
+                }
+
+            } else {
+                Log.e(TAG, "STUDENT_API_FAILED → instId=$instId ${response.errorBody()?.string()}")
             }
-
-            db.studentsDao().insertAll(studentsList)
-            db.classDao().insertAll(classList)
-            Log.d(TAG, "Inserted ${studentsList.size} students and ${classList.size} classes.")
-            true
-        } else {
-            Log.e(TAG, "STUDENT_API_FAILED: ${response.errorBody()?.string()}")
-            false
         }
+
+        // 🔹 Save merged data once
+        db.studentsDao().insertAll(studentsList)
+        db.classDao().insertAll(classList)
+
+        Log.d(TAG, "Inserted ${studentsList.size} students and ${classList.size} classes.")
+
+        true
     }
 
     suspend fun fetchAndSaveTeachers(
@@ -60,37 +90,71 @@ class DataSyncRepository(private val context: Context) {
         db: AppDatabase,
         instIds: String
     ): Boolean = withContext(Dispatchers.IO) {
+
         val rParam = "api/v1/User/GetUserRegisteredDetails"
-        val dataParam = "{\"userRegParamData\":{\"userType\":\"staff\",\"registrationType\":\"FingerPrint\",\"school_id\":\"$instIds\"}}"
-        val response = apiService.getTeachers(rParam, dataParam)
+        val teachersList = mutableListOf<Teacher>()
 
-        if (response.isSuccessful && response.body() != null) {
-            val jsonString = response.body()!!.string()
-            val json = JSONObject(jsonString)
-            val dataArray = json.optJSONObject("collection")
-                ?.optJSONObject("response")
-                ?.optJSONArray("userRegisteredData") ?: JSONArray()
+        // 🔹 Split multiple institute IDs
+        val instList = instIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-            val teachersList = mutableListOf<Teacher>()
-            for (i in 0 until dataArray.length()) {
-                val obj = dataArray.getJSONObject(i)
-                if (obj.optString("staffProfile", "").equals("teacher", ignoreCase = true)) {
+        for (instId in instList) {
+
+            val dataParam =
+                "{\"userRegParamData\":{\"userType\":\"staff\",\"registrationType\":\"FingerPrint\",\"school_id\":\"$instId\"}}"
+
+            // 🔹 Log API request
+            Log.d(TAG, "TEACHER_API_REQUEST → instId=$instId")
+            Log.d(TAG, "TEACHER_API_REQUEST → r=$rParam")
+            Log.d(TAG, "TEACHER_API_REQUEST → data=$dataParam")
+
+            val response = apiService.getTeachers(rParam, dataParam)
+
+            if (response.isSuccessful && response.body() != null) {
+
+                val jsonString = response.body()!!.string()
+                val json = JSONObject(jsonString)
+
+                val dataArray = json.optJSONObject("collection")
+                    ?.optJSONObject("response")
+                    ?.optJSONArray("userRegisteredData") ?: JSONArray()
+
+                Log.d(TAG, "INST=$instId → teachers=${dataArray.length()}")
+
+                for (i in 0 until dataArray.length()) {
+                    val obj = dataArray.getJSONObject(i)
+
+                    val staffProfile = obj.optString("staffProfile", "")
+                    if (!staffProfile.equals("teacher", ignoreCase = true)) continue
+
+                    val staffId = obj.optString("staffId", "")
+                    val staffName = obj.optString("staffName", "")
+
+                    // 🔹 Force assign correct instituteId from loop
                     teachersList.add(
                         Teacher(
-                            obj.optString("staffId", ""),
-                            obj.optString("staffName", ""),
-                            obj.optString("instId", "")
+                            staffId,
+                            staffName,
+                            instId
                         )
                     )
+
+                    Log.d(
+                        TAG,
+                        "TEACHER_PARSED → id=$staffId, name=$staffName, instId=$instId"
+                    )
                 }
+
+            } else {
+                Log.e(TAG, "TEACHER_API_FAILED → instId=$instId ${response.errorBody()?.string()}")
             }
-            db.teachersDao().insertAll(teachersList)
-            Log.d(TAG, "Inserted ${teachersList.size} teachers.")
-            true
-        } else {
-            Log.e(TAG, "TEACHER_API_FAILED: ${response.errorBody()?.string()}")
-            false
         }
+
+        // 🔹 Save merged data once
+        db.teachersDao().insertAll(teachersList)
+
+        Log.d(TAG, "Inserted ${teachersList.size} teachers.")
+
+        true
     }
 
     suspend fun syncSubjectInstances(

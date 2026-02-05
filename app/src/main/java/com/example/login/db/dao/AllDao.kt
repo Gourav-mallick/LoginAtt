@@ -14,7 +14,35 @@ import com.example.login.db.entity.Teacher
 import com.example.login.db.entity.Class
 import com.example.login.db.entity.CourseFullInfo
 import com.example.login.db.entity.CoursePeriod
+import com.example.login.db.entity.Institute
 import com.example.login.db.entity.Session
+
+
+
+@Dao
+interface InstituteDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(list: List<Institute>)
+
+    @Query("SELECT * FROM institutes")
+    suspend fun getAll(): List<Institute>
+
+    @Query("DELETE FROM institutes")
+    suspend fun clear()
+
+    @Query("SELECT shortName FROM institutes WHERE Id = :instituteId")
+    suspend fun getInstituteNameById(instituteId: String): String?
+
+
+    @Query("SELECT sYear FROM institutes WHERE id = :instituteId")
+    suspend fun getInstituteYearById(instituteId: String): String?
+
+    @Query("DELETE FROM institutes WHERE id NOT IN (:selectedIds)")
+    suspend fun deleteExcept(selectedIds: List<String>)
+
+
+}
 
 
 @Dao
@@ -89,6 +117,9 @@ interface TeachersDao {
         namePart3: String?
     ): Teacher?
 
+
+    @Query("SELECT instId FROM teachers WHERE staffId = :teacherId LIMIT 1")
+    suspend fun getInstituteIdByTeacherId(teacherId: String): String?
 
 }
 
@@ -197,6 +228,9 @@ interface SessionDao {
 
     @Query("UPDATE sessions SET syncStatus = :newStatus WHERE sessionId = :sessionId")
     suspend fun updateSessionSyncStatusToComplete(sessionId: String, newStatus: String)
+
+    @Query("SELECT instId FROM sessions WHERE sessionId = :sessionId LIMIT 1")
+    suspend fun getInstituteIdBySessionId(sessionId: String): String?
 
 
 }

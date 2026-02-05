@@ -18,6 +18,8 @@ import org.json.JSONObject
 import retrofit2.Response
 import com.example.login.R
 import com.example.login.utility.CheckNetworkAndInternetUtils
+import com.example.login.db.dao.AppDatabase
+import com.example.login.db.entity.Institute
 
 class LoginActivity : AppCompatActivity() {
 
@@ -144,42 +146,70 @@ class LoginActivity : AppCompatActivity() {
 
 
                                 // Collect schoolId and schoolShortName lists
-                                // Collect unique schoolId and schoolShortName pairs
-                                val schoolMap = mutableMapOf<String, String>() // schoolId to schoolShortName
+                                // 🔹 CALL DIRECT SCHOOL LIST API
+                                val schoolResponse = service.getSchoolList()
 
-
-                                val schoolsArray = userData.optJSONArray("schoolsData")
-                                if (schoolsArray != null) {
-                                    Log.d(TAG, "SCHOOLS_DATA_ARRAY: $schoolsArray")
-                                    Log.d(TAG, "SCHOOLS_COUNT: ${schoolsArray.length()}")
-                                    for (i in 0 until schoolsArray.length()) {
-                                        val school = schoolsArray.optJSONObject(i)
-                                        val syearsDataArray = school?.optJSONArray("syearsData")
-                                        if (syearsDataArray != null) {
-                                            for (j in 0 until syearsDataArray.length()) {
-                                                val syearData = syearsDataArray.optJSONObject(j)
-                                                val schoolId = syearData?.optString("schoolId", "No schoolId") ?: "No schoolId"
-                                                val schoolShortName = syearData?.optString("schoolShortName", "No schoolShortName") ?: "No schoolShortName"
-                                                Log.d(TAG, "SCHOOL[$i].SYEAR[$j]: schoolId=$schoolId, schoolShortName=$schoolShortName")
-                                                if (!schoolMap.containsKey(schoolId)) {
-                                                    schoolMap[schoolId] = schoolShortName
-                                                }
-
-                                            }
-                                        } else {
-                                            Log.d(TAG, "SCHOOL[$i].SYEARS_DATA: null")
-                                        }
-                                    }
-                                } else {
-                                    Log.d(TAG, "SCHOOLS_DATA_ARRAY: null")
-                                    Log.d(TAG, "SCHOOLS_COUNT: 0")
+                                if (!schoolResponse.isSuccessful || schoolResponse.body() == null) {
+                                    Toast.makeText(this@LoginActivity, "Unable to fetch institutes.", Toast.LENGTH_LONG).show()
+                                    return@withContext
                                 }
 
-                                // Convert map to lists for Intent
-                                val schoolIds = schoolMap.keys.toList()
-                                val schoolShortNames = schoolMap.values.toList()
+                                val schoolJson = JSONObject(schoolResponse.body()!!.string())
 
-                                //check valid user or not
+                                val schoolArray = schoolJson.optJSONObject("collection")
+                                    ?.optJSONObject("response")
+                                    ?.optJSONArray("schoolList")
+
+                                if (schoolArray == null || schoolArray.length() == 0) {
+                                    Toast.makeText(this@LoginActivity, "No institutes found.", Toast.LENGTH_LONG).show()
+                                    return@withContext
+                                }
+
+                                val instituteList = mutableListOf<Institute>()
+                                val schoolIds = ArrayList<String>()
+                                val schoolShortNames = ArrayList<String>()
+
+                                for (i in 0 until schoolArray.length()) {
+
+                                    val obj = schoolArray.getJSONObject(i)
+
+                                    val id = obj.optString("ID")
+                                    val shortName = obj.optString("SHORT_NAME")
+                                    val title = obj.optString("TITLE")
+                                    val sYear = obj.optString("SYEAR")
+                                    val timezone = obj.optString("timezone")
+
+                                    Log.d(TAG, "INSTITUTE_API → id=$id, name=$shortName, year=$sYear, tz=$timezone")
+
+                                    instituteList.add(
+                                        Institute(id, shortName, title, sYear, timezone)
+                                    )
+
+                                    schoolIds.add(id)
+                                    schoolShortNames.add(shortName)
+                                }
+
+
+
+                                // 🔹 Save Institutes into Room (minimal change)
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val db = AppDatabase.getDatabase(this@LoginActivity)
+                                        db.instituteDao().clear()
+                                        db.instituteDao().insertAll(instituteList)
+
+                                        Log.d(TAG, "INSTITUTES_SAVED: ${instituteList.size}")
+
+                                        db.instituteDao().getAll().forEach {
+                                            Log.d("DB_CHECK", "ID=${it.id}, NAME=${it.shortName}, YEAR=${it.sYear}, TZ=${it.timezone}")
+                                        }
+
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "INSTITUTE_SAVE_ERROR: ${e.message}")
+                                    }
+                                }
+
+//check valid user or not
                                 if (isUserValid) {
 
                                     //  Save login details for next launch
@@ -190,19 +220,17 @@ class LoginActivity : AppCompatActivity() {
                                         .putString("hash", HASH)
                                         .apply()
 
-                                    Log.d(TAG, "SAVED_LOGIN_DETAILS: baseUrl=$baseUrl, username=$username, password=$password, hash=$HASH")
+                                    Log.d(TAG, "SAVED_LOGIN_DETAILS: baseUrl=$baseUrl, username=$username")
 
-
-                                    // Navigate to SelectInstituteActivity with schoolIds and schoolShortNames
-                                    val intent = Intent(
-                                        this@LoginActivity,
-                                        SelectInstituteActivity::class.java
-                                    ).apply {
+                                    // Navigate to SelectInstituteActivity
+                                    val intent = Intent(this@LoginActivity, SelectInstituteActivity::class.java).apply {
                                         putStringArrayListExtra("schoolIds", ArrayList(schoolIds))
                                         putStringArrayListExtra("schoolShortNames", ArrayList(schoolShortNames))
                                     }
                                     startActivity(intent)
-                                    Log.d(TAG, "LOGIN_SUCCESS: Validation passed. Navigating to SelectInstituteActivity with schoolIds=$schoolIds, schoolShortNames=$schoolShortNames")
+
+                                    Log.d(TAG, "LOGIN_SUCCESS: schoolIds=$schoolIds, schoolShortNames=$schoolShortNames")
+
                                 } else {
                                     Toast.makeText(this@LoginActivity, "Invalid username or password: $responseMsg", Toast.LENGTH_LONG).show()
                                     Log.e(TAG, "LOGIN_FAILED: $responseMsg")

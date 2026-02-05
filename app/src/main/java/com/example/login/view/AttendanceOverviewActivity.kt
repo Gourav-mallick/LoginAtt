@@ -163,6 +163,9 @@ class AttendanceOverviewActivity : ComponentActivity() {
                     requestBody = requestBody
                 )
 
+                // 🔹 Log HTTP status
+                Log.d("SYNC_HTTP", "Code: ${response.code()}")
+                Log.d("SYNC_HTTP", "Message: ${response.message()}")
                 binding.progressBar.visibility = View.GONE
 
                 if (response.isSuccessful && response.body() != null) {
@@ -176,6 +179,10 @@ class AttendanceOverviewActivity : ComponentActivity() {
                         val apiStatus = responseObj?.optString("status", "FAILED") ?: "FAILED"
                         val apiMsgArray = responseObj?.optJSONArray("msgAr")
                         val msg = apiMsgArray?.optString(0) ?: "Attendance synced successfully"
+
+                        Log.d("SYNC_PARSED", "Status = $apiStatus")
+                        Log.d("SYNC_PARSED", "Message = $msg")
+
 
                         if (apiStatus.equals("SUCCESS", ignoreCase = true)) {
                             // Delete Attendance records from DB & Session if it successfully sent to server
@@ -191,11 +198,15 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
 
                         } else {
+                            Log.e("SYNC_FAIL", "Server returned failure: $msg")
+
                             withContext(Dispatchers.Main) {
                                 showPopupWithOk("Attendance saved locally. You can sync later.")
                             }
                         }
                     } catch (e: Exception) {
+                        Log.e("SYNC_PARSE_ERROR", "JSON parse error: ${e.message}")
+
                         withContext(Dispatchers.Main) {
                             showPopupWithOk("Attendance saved locally. You can sync later.")
                         }

@@ -5,6 +5,15 @@ import androidx.room.PrimaryKey
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
+@Entity(tableName = "institutes")
+data class Institute(
+    @PrimaryKey val id: String,
+    val shortName: String,
+    val title: String?,
+    val sYear: String?,
+    val timezone: String?,
+)
+
 @Entity(tableName = "students")
 @Parcelize
 data class Student(

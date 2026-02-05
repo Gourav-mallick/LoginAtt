@@ -196,6 +196,11 @@ class SelectInstituteActivity : AppCompatActivity() {
                     val apiService = retrofit.create(ApiService::class.java)
                     val db = AppDatabase.getDatabase(this@SelectInstituteActivity)
 
+                    db.instituteDao().deleteExcept(selectedInstitutes.toList())
+                    Log.d(TAG, "FILTERED_INSTITUTES_DB → kept=${selectedInstitutes.size}")
+
+                    val all = db.instituteDao().getAll()
+                    Log.d(TAG, "DB_AFTER_FILTER = ${all.map { it.id }}")
                     // Call multiple APIs sequentially
                     val repository = DataSyncRepository(this@SelectInstituteActivity)
 

@@ -229,7 +229,14 @@ class AttendanceActivity : AppCompatActivity() {
             when (typeChar) {
                 "A" -> {
                     val classObj = db.classDao().getClassById(idValue)
-                    if (classObj != null) handleClassScan(classObj.classId, classObj.classShortName)
+                    val classroomId = idValue   // e.g. "1"
+                    val classroomName = "Room $idValue"
+                    Log.d("NFC_DEBUG", "DB Result: $classObj")
+                    Log.d("NFC_DEBUG", "Classroom card scanned: $classroomId")
+                    Log.d("NFC_DEBUG", "Classroom card scanned: $classroomName")
+                    Log.d("NFC_DEBUG", "DB Result id: $idValue" )
+                    Log.d("NFC_DEBUG", "DB Result: $classObj.classShortName" )
+                    if (classroomId != null) handleClassScan(classroomId, classroomName)
                     else Toast.makeText(this@AttendanceActivity, "Class not found!", Toast.LENGTH_SHORT).show()
                 }
                 "B" -> {
@@ -255,7 +262,7 @@ class AttendanceActivity : AppCompatActivity() {
             val existingForClass = activeSessions.keys.any { it.first == classroomId }
 
             if (!existingForClass) {
-                // ✅ Start a new classroom cycle (no active session yet)
+                //  Start a new classroom cycle (no active session yet)
                 val cycle = AttendanceCycle(classroomId, classroomName)
                 // Note: No teacher yet, teacher will scan next.
                 currentVisibleClassroomId = classroomId
@@ -420,22 +427,30 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
             val estimated = getEstimatedCurrentTime()
             val startTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(estimated)
             val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(estimated)
-            val instId = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
-                .getString("selectedInstituteIds", "") ?: ""
+            val inst_Id = db.teachersDao().getInstituteIdByTeacherId(teacherId) ?: ""
+
+            if (inst_Id.isEmpty()) {
+                Log.e("SESSION_ERROR", "Teacher instituteId not found!")
+                Toast.makeText(this@AttendanceActivity, "Teacher institute missing!", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+//            val instId = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
+//                .getString("selectedInstituteIds", "") ?: ""
 
             val session = Session(
                 sessionId = sessionId,
-                classId = classId,
+                classId = "",
                 teacherId = teacherId,
                 subjectId = "",
                 date = date,
                 startTime = startTime,
                 endTime = "",
                 isMerged = 0,
-                instId = instId,
+                instId = inst_Id,
                 syncStatus = "pending",
                 periodId = ""
             )
+            Log.d("SYNC_DEBUG_attandance", "Session: $session")
             db.sessionDao().insertSession(session)
 
             val newCycle = AttendanceCycle(
@@ -543,6 +558,20 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
             val savedInstituteId = prefs.getString("selectedInstituteIds", "")
             val savedInstituteName = prefs.getString("selectedInstituteNames", "")
 
+            // 🔹 Get instituteId directly from student
+            val sessionInstId = db.sessionDao().getInstituteIdBySessionId(cycle.sessionId!!)
+
+            // 🔹 Fallback safety (should not happen)
+            val instId = sessionInstId ?: student.instId
+
+            val academicYear = instId.let { db.instituteDao().getInstituteYearById(it) } ?: ""
+
+// 🔹 Get institute name using instId
+            val instName = db.instituteDao().getInstituteNameById(instId) ?: "Unknown"
+
+
+// 🔹 Debug logs
+            Log.d(TAG, "STUDENT_INST → studentId=${student.studentId}, instId=$instId, instName=$instName")
 
             val attendance = Attendance(
                 atteId = AttendanceIdGenerator.nextId(),
@@ -553,12 +582,12 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
                 status = "P",
                 markedAt = timeStamp,
                 syncStatus = "pending",
-                instId = savedInstituteId!!,
-                instShortName = savedInstituteName,
+                instId = instId,
+                instShortName = instName,
                 date = currentDate,
                 startTime = startTime,
                 endTime = "",
-                academicYear = "",
+                academicYear = academicYear,
                 period = "",
                 teacherId =cycle.teacherId!!,
                 teacherName = cycle.teacherName!!,
