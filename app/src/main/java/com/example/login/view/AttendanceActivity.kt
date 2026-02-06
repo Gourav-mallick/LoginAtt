@@ -435,8 +435,7 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
                 return@launch
             }
 
-            val spId = getFlexibleSchoolPeriodId(inst_Id, startTime)
-            Log.d("PERIOD_SAVE", "Session Start=$startTime → spId=$spId")
+
 
             val session = Session(
                 sessionId = sessionId,
@@ -448,7 +447,7 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
                 endTime = "",
                 isMerged = 0,
                 instId = inst_Id,
-                attSchoolPeriodId = spId,
+                attSchoolPeriodId = "",
                 syncStatus = "pending",
                 periodId = ""
             )
@@ -596,7 +595,7 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
                 period = "",
                 teacherId =cycle.teacherId!!,
                 teacherName = cycle.teacherName!!,
-                attSchoolPeriodId = attSchoolPeriodId
+                attSchoolPeriodId = ""
             )
 
 
@@ -627,42 +626,43 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
                     lifecycleScope.launch {
 
                         val sessionId = cycle.sessionId ?: return@launch
-                        val db = AppDatabase.getDatabase(this@AttendanceActivity)
+
+                       // val db = AppDatabase.getDatabase(this@AttendanceActivity)
 
                         // 1️⃣ Update end time
-                        db.sessionDao().updateSessionEnd(sessionId, currentTime)
-                        db.attendanceDao().updateAttendanceEndTime(sessionId, currentTime)
-
-                        // 2️⃣ Detect all taught periods (STRICT logic)
-                        val sessionObj = db.sessionDao().getSessionById(sessionId)
-                        val instId = sessionObj?.instId ?: return@launch
-
-                        var taughtPeriods = detectTaughtPeriodsStrict(
-                            instId,
-                            sessionObj.startTime,
-                            currentTime
-                        )
-
-// 🔹 FALLBACK → if no strict match, use current session period only
-                        if (taughtPeriods.isEmpty()) {
-
-                            val currentPeriod = sessionObj.attSchoolPeriodId
-
-                            if (!currentPeriod.isNullOrEmpty()) {
-                                taughtPeriods = listOf(currentPeriod)
-                                Log.w("PERIOD_FALLBACK", "No strict match → Using current period $currentPeriod")
-                            }
-                        }
-
-                        if (taughtPeriods.isNotEmpty()) {
-
-                            val periodCsv = taughtPeriods.distinct().joinToString(",")
-
-                            Log.d("PERIOD_FINAL", "Updating session + attendance → $periodCsv")
-
-                            db.sessionDao().updateSessionPeriodIds(sessionId, periodCsv)
-                            db.attendanceDao().updateAttendancePeriodIds(sessionId, periodCsv)
-                        }
+//                        db.sessionDao().updateSessionEnd(sessionId, currentTime)
+//                        db.attendanceDao().updateAttendanceEndTime(sessionId, currentTime)
+//
+//                        // 2️⃣ Detect all taught periods (STRICT logic)
+//                        val sessionObj = db.sessionDao().getSessionById(sessionId)
+//                        val instId = sessionObj?.instId ?: return@launch
+//
+//                        var taughtPeriods = detectTaughtPeriodsStrict(
+//                            instId,
+//                            sessionObj.startTime,
+//                            currentTime
+//                        )
+//
+//// 🔹 FALLBACK → if no strict match, use current session period only
+//                        if (taughtPeriods.isEmpty()) {
+//
+//                            val currentPeriod = sessionObj.attSchoolPeriodId
+//
+//                            if (!currentPeriod.isNullOrEmpty()) {
+//                                taughtPeriods = listOf(currentPeriod)
+//                                Log.w("PERIOD_FALLBACK", "No strict match → Using current period $currentPeriod")
+//                            }
+//                        }
+//
+//                        if (taughtPeriods.isNotEmpty()) {
+//
+//                            val periodCsv = taughtPeriods.distinct().joinToString(",")
+//
+//                            Log.d("PERIOD_FINAL", "Updating session + attendance → $periodCsv")
+//
+//                            db.sessionDao().updateSessionPeriodIds(sessionId, periodCsv)
+//                            db.attendanceDao().updateAttendancePeriodIds(sessionId, periodCsv)
+//                        }
 
 
                         // 5️⃣ Remove active cycle
@@ -995,90 +995,90 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
     }
 
 
-    private suspend fun getFlexibleSchoolPeriodId(instId: String, startTime: String): String {
-        val db = AppDatabase.getDatabase(this)
-        val periods = db.schoolPeriodDao().getAll().filter { it.instId == instId }
+//    private suspend fun getFlexibleSchoolPeriodId(instId: String, startTime: String): String {
+//        val db = AppDatabase.getDatabase(this)
+//        val periods = db.schoolPeriodDao().getAll().filter { it.instId == instId }
+//
+//        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+//        val now = sdf.parse(startTime) ?: return ""
+//
+//        val GRACE_MINUTES = 10
+//
+//        for (p in periods) {
+//            val start = sdf.parse(p.spIstTime)!!
+//            val end = sdf.parse(p.spEndTime)!!
+//            val graceStart = Date(start.time - GRACE_MINUTES * 60 * 1000)
+//
+//            if (now.after(start) && now.before(end)) {
+//                Log.d("PERIOD_ASSIGN", "Inside → ${p.spTitle} spId=${p.spId}")
+//                return p.spId
+//            }
+//            if (now.after(graceStart) && now.before(start)) {
+//                Log.d("PERIOD_ASSIGN", "Grace → ${p.spTitle} spId=${p.spId}")
+//                return p.spId
+//            }
+//        }
+//
+//        Log.w("PERIOD_ASSIGN", "No matching period for $startTime")
+//
+//        val defaultSpId = periods.first().spId
+//        Log.w("PERIOD_ASSIGN", "No match for $startTime, fallback → spId=$defaultSpId")
+//        return defaultSpId
+//    }
 
-        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val now = sdf.parse(startTime) ?: return ""
 
-        val GRACE_MINUTES = 10
-
-        for (p in periods) {
-            val start = sdf.parse(p.spIstTime)!!
-            val end = sdf.parse(p.spEndTime)!!
-            val graceStart = Date(start.time - GRACE_MINUTES * 60 * 1000)
-
-            if (now.after(start) && now.before(end)) {
-                Log.d("PERIOD_ASSIGN", "Inside → ${p.spTitle} spId=${p.spId}")
-                return p.spId
-            }
-            if (now.after(graceStart) && now.before(start)) {
-                Log.d("PERIOD_ASSIGN", "Grace → ${p.spTitle} spId=${p.spId}")
-                return p.spId
-            }
-        }
-
-        Log.w("PERIOD_ASSIGN", "No matching period for $startTime")
-
-        val defaultSpId = periods.first().spId
-        Log.w("PERIOD_ASSIGN", "No match for $startTime, fallback → spId=$defaultSpId")
-        return defaultSpId
-    }
-
-
-    private suspend fun detectTaughtPeriodsStrict(
-        instId: String,
-        sessionStart: String,
-        sessionEnd: String
-    ): List<String> {
-
-        val db = AppDatabase.getDatabase(this)
-        val periods = db.schoolPeriodDao().getAll()
-            .filter { it.instId == instId }
-
-        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val startTime = sdf.parse(sessionStart) ?: return emptyList()
-        val endTime = sdf.parse(sessionEnd) ?: return emptyList()
-
-        val GRACE_MINUTES = 10
-        val result = mutableListOf<String>()
-
-        for (p in periods) {
-            val pStart = sdf.parse(p.spIstTime) ?: continue
-            val pEnd = sdf.parse(p.spEndTime) ?: continue
-
-            val graceEnd = Date(pEnd.time + GRACE_MINUTES * 60 * 1000)
-
-            // ✅ START period
-            if (startTime.after(pStart) && startTime.before(pEnd)) {
-                result.add(p.spId)
-                continue
-            }
-
-            // ✅ FULLY TAUGHT period
-            if (startTime.before(pStart) && endTime.after(pEnd)) {
-                result.add(p.spId)
-                continue
-            }
-
-            // ✅ END period (STRICT)
-            // end must be INSIDE the period, not just crossed start
-            if (endTime.after(pStart) && endTime.before(graceEnd)) {
-
-                // ❌ Reject if barely crossed from previous period
-                val minutesInside =
-                    (endTime.time - pStart.time) / (60 * 1000)
-
-                if (minutesInside >= 10) { // meaningful teaching
-                    result.add(p.spId)
-                }
-            }
-        }
-
-        Log.d("PERIOD_STRICT", "Final taught periods → $result")
-        return result.distinct()
-    }
+//    private suspend fun detectTaughtPeriodsStrict(
+//        instId: String,
+//        sessionStart: String,
+//        sessionEnd: String
+//    ): List<String> {
+//
+//        val db = AppDatabase.getDatabase(this)
+//        val periods = db.schoolPeriodDao().getAll()
+//            .filter { it.instId == instId }
+//
+//        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+//        val startTime = sdf.parse(sessionStart) ?: return emptyList()
+//        val endTime = sdf.parse(sessionEnd) ?: return emptyList()
+//
+//        val GRACE_MINUTES = 10
+//        val result = mutableListOf<String>()
+//
+//        for (p in periods) {
+//            val pStart = sdf.parse(p.spIstTime) ?: continue
+//            val pEnd = sdf.parse(p.spEndTime) ?: continue
+//
+//            val graceEnd = Date(pEnd.time + GRACE_MINUTES * 60 * 1000)
+//
+//            // ✅ START period
+//            if (startTime.after(pStart) && startTime.before(pEnd)) {
+//                result.add(p.spId)
+//                continue
+//            }
+//
+//            // ✅ FULLY TAUGHT period
+//            if (startTime.before(pStart) && endTime.after(pEnd)) {
+//                result.add(p.spId)
+//                continue
+//            }
+//
+//            // ✅ END period (STRICT)
+//            // end must be INSIDE the period, not just crossed start
+//            if (endTime.after(pStart) && endTime.before(graceEnd)) {
+//
+//                // ❌ Reject if barely crossed from previous period
+//                val minutesInside =
+//                    (endTime.time - pStart.time) / (60 * 1000)
+//
+//                if (minutesInside >= 10) { // meaningful teaching
+//                    result.add(p.spId)
+//                }
+//            }
+//        }
+//
+//        Log.d("PERIOD_STRICT", "Final taught periods → $result")
+//        return result.distinct()
+//    }
 
 
 

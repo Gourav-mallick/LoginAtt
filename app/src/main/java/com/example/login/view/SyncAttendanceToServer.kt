@@ -26,7 +26,9 @@ import okhttp3.ResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Response
-
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class SyncAttendanceToServer : AppCompatActivity(){
 
@@ -119,8 +121,17 @@ class SyncAttendanceToServer : AppCompatActivity(){
                     }
 
                     val attArray = JSONArray()
+//                    for (att in sessionAttendances) {
+//                        attArray.put(mapAttendanceToApiFormat(att))
+//                    }
+
                     for (att in sessionAttendances) {
-                        attArray.put(mapAttendanceToApiFormat(att))
+                        Log.d("SYNC_REQUEST msg", "$att")
+                        val mappedList = mapAttendanceToApiFormat(att)
+
+                        for (json in mappedList) {
+                            attArray.put(json)
+                        }
                     }
 
                     val requestBodyJson = JSONObject().apply {
@@ -193,77 +204,101 @@ class SyncAttendanceToServer : AppCompatActivity(){
     }
 
 
-    private suspend fun mapAttendanceToApiFormat(att: Attendance): JSONObject {
+    private suspend fun mapAttendanceToApiFormat(att: Attendance): List<JSONObject> {
 
-        val date=att.date
-        val startTime=att.startTime
-        val endtime=att.endTime
-        val year = date.split("-")[0]
-        val dataStartTime="$date $startTime:00"
+        val date = att.date
+        val startTime = att.startTime
+        val endTime = att.endTime
+        val dataStartTime = toApiDateTime(date, startTime)
+        val dataEndTime   = toApiDateTime(date, endTime)
 
-        val dataEndTime="$date $endtime:00"
         val classShort = db.classDao().getClassById(att.classId)?.classShortName ?: ""
 
-        return JSONObject().apply {
-            put("studentId", att.studentId)
-            put("instId", att.instId)
-            put("instShortName", att.instShortName ?: "")
-            put("academicYear",  att.academicYear)
-            put("classId", att.classId)
-            put("classShortName", classShort ?: "")
-            put("subjectId", att.subjectId ?: "")
-            put("subjectCode", att.subjectId ?: "")
-            put("subjectShortName", att.subjectTitle ?: "")
-            put("courseId", att.courseId ?: "")
-            put("courseShortName", att.courseShortName ?: "")
-            put("cpId", att.cpId ?: "")
-            put("cpShortName", "")
-            put("mpId", att.mpId ?: "")
-            put("mpShortName", att.mpLongTitle ?: "")
-            put("attDate", att.date)
-            put("attSchoolPeriodStartTime", att.startTime)
-            put("attSchoolPeriodEndTime", att.endTime)
-            put("period", att.period)
-            // put("status", att.status)
-            // You can extend more mappings as per your actual backend requirement
-            put("studentClass", att.classShortName ?: "")
-            put("attCodetitle", "present")
-            put("courseSelectionMode","")
-            put("stfId",att.teacherId)
-            put("stfFML","")
-            put("studId",att.studentId)
-            put("studfFML","")
-            put("studfLFM","")
-            put("studentName",att.studentName)
-            put("studAltId",att.atteId)
-            put("studRollNo","")
-            put("int_rollNo","")
-            put("attCycleId","")
-            put("attSessionId",att.sessionId)
-            put("attSchoolPeriodId",att.attSchoolPeriodId)
-            put("attSchoolPeriodTitle","")
-            put("attSessionStartDateTime",dataStartTime )
-            put("attSessionEndDateTime",dataEndTime)
-            put("attCapturingIntervalDateTime","")
-            put("attCapturingIntervalInSec","")
-            put("attCapturingCycleState","")
-            put("attCategory","Regular")
-            put("studAttComment","")
-            put("attSessionStudId","")
-            put("attCodeId","1")
-            put("attCodeLngName","present")
-            put("attCode","P")
-            put("studAttStartDateTime",dataStartTime)
-            put("studAttEndDateTime",dataEndTime)
-            put("studAttTotalDuration","")
-            put("atsaId","")
-            put("atsaIsProxy","")
-            put("atsaDistanceDeltaInMeter","")
-            put("isSelfUsrAttMarked","")
-            put("attCoLectureCpIds","")
-            put("toRemoveCoLecturerCpIds","")
-            put("toAddCoLecturerCpIds","")
-            put("status","A")
+        val periodIds = att.attSchoolPeriodId
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?: listOf("")
 
-        }    }
+        val result = mutableListOf<JSONObject>()
+
+        for (spId in periodIds) {
+
+            val obj = JSONObject().apply {
+
+                put("studentId", att.studentId)
+                put("instId", att.instId)
+                put("instShortName", att.instShortName ?: "")
+                put("academicYear", att.academicYear)
+                put("classId", att.classId)
+                put("classShortName", classShort)
+                put("subjectId", att.subjectId ?: "")
+                put("subjectCode", att.subjectId ?: "")
+                put("subjectShortName", att.subjectTitle ?: "")
+                put("courseId", att.courseId ?: "")
+                put("courseShortName", att.courseShortName ?: "")
+                put("cpId", att.cpId ?: "")
+                put("mpId", att.mpId ?: "")
+                put("mpShortName", att.mpLongTitle ?: "")
+                put("attDate", att.date)
+                put("attSchoolPeriodStartTime", att.startTime)
+                put("attSchoolPeriodEndTime", att.endTime)
+                put("period", att.period)
+                put("studentClass", att.classShortName ?: "")
+                put("attCodetitle", "present")
+                put("stfId", att.teacherId)
+                put("studentName", att.studentName)
+                put("studAltId", att.atteId)
+                put("attSessionId", att.sessionId)
+
+                // 🔴 IMPORTANT → ONE PERIOD ONLY
+                put("attSchoolPeriodId", spId)
+
+                put("attSessionStartDateTime", dataStartTime)
+                put("attSessionEndDateTime", dataEndTime)
+                put("studAttStartDateTime", dataStartTime)
+                put("studAttEndDateTime", dataEndTime)
+
+                put("attCategory", "Regular")
+                put("attCodeId", "1")
+                put("attCodeLngName", "present")
+                put("attCode", "P")
+                put("status", "A")
+            }
+
+            result.add(obj)
+        }
+
+        return result
+    }
+
+
+
+    private fun toApiDateTime(date: String, time: String?): String {
+        if (time.isNullOrBlank()) return "$date 00:00:00"
+
+        return try {
+            val possibleFormats = listOf(
+                SimpleDateFormat("HH:mm:ss", Locale.getDefault()),
+                SimpleDateFormat("HH:mm", Locale.getDefault())
+            )
+
+            var parsed: Date? = null
+            for (fmt in possibleFormats) {
+                try {
+                    parsed = fmt.parse(time)
+                    if (parsed != null) break
+                } catch (_: Exception) {}
+            }
+
+            if (parsed == null) return "$date 00:00:00"
+
+            val out = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(parsed)
+            "$date $out"
+
+        } catch (e: Exception) {
+            "$date 00:00:00"
+        }
+    }
+
 }

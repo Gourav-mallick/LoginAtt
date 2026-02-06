@@ -288,6 +288,11 @@ interface SessionDao {
     @Query("UPDATE sessions SET attSchoolPeriodId = :periodCsv WHERE sessionId = :sessionId")
     suspend fun updateSessionPeriodIds(sessionId: String, periodCsv: String)
 
+    @Query("UPDATE sessions SET startTime = :start, endTime = :end WHERE sessionId = :sessionId")
+    suspend fun updateSessionStartEndTime(sessionId: String, start: String, end: String)
+
+
+
 }
 
 
@@ -431,6 +436,10 @@ AND studentId = :studentId
 
     @Query("UPDATE attendance SET attSchoolPeriodId = :periodCsv WHERE sessionId = :sessionId")
     suspend fun updateAttendancePeriodIds(sessionId: String, periodCsv: String)
+
+
+    @Query("UPDATE attendance SET startTime = :start, endTime = :end WHERE sessionId = :sessionId")
+    suspend fun updateAttendanceStartEndTime(sessionId: String, start: String, end: String)
 
 
 

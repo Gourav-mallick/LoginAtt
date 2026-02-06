@@ -3,13 +3,17 @@ package com.example.login.view
 import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
+import android.widget.CheckBox
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.login.R
 import com.example.login.databinding.ActivityClassSelectBinding
 import com.example.login.db.dao.AppDatabase
+import com.example.login.db.entity.SchoolPeriod
 import kotlinx.coroutines.launch
 
 class ClassSelectActivity : ComponentActivity() {
@@ -66,27 +70,36 @@ class ClassSelectActivity : ComponentActivity() {
 
             lifecycleScope.launch {
                 // 🔹 Delete attendance of all unselected classes
-                db.attendanceDao().deleteAttendanceNotInClasses(selectedClassIds.toList(), sessionId)
+//                db.attendanceDao().deleteAttendanceNotInClasses(selectedClassIds.toList(), sessionId)
+//
+//                // 🔹 Update session with selected class IDs
+//                db.sessionDao().updateSessionClasses(sessionId, selectedClassIds.joinToString(","))
+//
+//                Toast.makeText(this@ClassSelectActivity, "Classes updated successfully", Toast.LENGTH_SHORT).show()
+//
+//
+//                // 🔹 When continuing, clear resume flag so app won’t reopen here again
+//                getSharedPreferences("APP_STATE", MODE_PRIVATE)
+//                    .edit()
+//                    .remove("IS_IN_CLASS_SELECT")
+//                    .remove("SESSION_ID")
+//                    .apply()
+//
+//                // 🔹 Navigate next
+//                val intent = Intent(this@ClassSelectActivity, SubjectSelectActivity::class.java)
+//                intent.putExtra("SESSION_ID", sessionId)
+//                intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClassIds))
+//                startActivity(intent)
+//                finish()
 
-                // 🔹 Update session with selected class IDs
-                db.sessionDao().updateSessionClasses(sessionId, selectedClassIds.joinToString(","))
+                val periods = db.schoolPeriodDao().getAll()
 
-                Toast.makeText(this@ClassSelectActivity, "Classes updated successfully", Toast.LENGTH_SHORT).show()
+                if (periods.isEmpty()) {
+                    Toast.makeText(this@ClassSelectActivity, "No periods found", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
 
-
-                // 🔹 When continuing, clear resume flag so app won’t reopen here again
-                getSharedPreferences("APP_STATE", MODE_PRIVATE)
-                    .edit()
-                    .remove("IS_IN_CLASS_SELECT")
-                    .remove("SESSION_ID")
-                    .apply()
-
-                // 🔹 Navigate next
-                val intent = Intent(this@ClassSelectActivity, SubjectSelectActivity::class.java)
-                intent.putExtra("SESSION_ID", sessionId)
-                intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClassIds))
-                startActivity(intent)
-                finish()
+                showPeriodDialog(periods)
             }
         }
     }
@@ -147,4 +160,83 @@ class ClassSelectActivity : ComponentActivity() {
             }
         }
     }
+
+
+    private fun showPeriodDialog(periods: List<SchoolPeriod>) {
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_period_select, null)
+        val container = dialogView.findViewById<LinearLayout>(R.id.periodContainer)
+
+        val selected = mutableListOf<SchoolPeriod>()
+
+        for (p in periods) {
+            val cb = CheckBox(this)
+            cb.text = p.spTitle
+
+            cb.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) selected.add(p)
+                else selected.remove(p)
+            }
+
+            container.addView(cb)
+        }
+
+        AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .setPositiveButton("OK") { _, _ ->
+
+                if (selected.isEmpty()) {
+                    Toast.makeText(this, "Select at least one period", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                lifecycleScope.launch {
+                    applySelectedPeriods(selected)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+
+    private suspend fun applySelectedPeriods(selected: List<SchoolPeriod>) {
+
+        val sorted = selected.sortedBy { it.spIstTime }
+
+        val periodCsv = sorted.joinToString(",") { it.spId }
+
+        val startTime = sorted.first().spStartTime
+            .replace(" AM","")
+            .replace(" PM","")
+
+        val endTime = sorted.last().spEndTime
+            .replace(" AM","")
+            .replace(" PM","")
+
+        // 🔹 Delete attendance of unselected classes
+        db.attendanceDao().deleteAttendanceNotInClasses(selectedClassIds.toList(), sessionId)
+
+        // 🔹 Update session classes
+        db.sessionDao().updateSessionClasses(sessionId, selectedClassIds.joinToString(","))
+
+        // 🔹 Update SESSION period + time
+        db.sessionDao().updateSessionPeriodIds(sessionId, periodCsv)
+        db.sessionDao().updateSessionStartEndTime(sessionId, startTime, endTime)
+
+        // 🔹 Update ATTENDANCE rows
+        db.attendanceDao().updateAttendancePeriodIds(sessionId, periodCsv)
+        db.attendanceDao().updateAttendanceStartEndTime(sessionId, startTime, endTime)
+
+        Toast.makeText(this, "Periods applied successfully", Toast.LENGTH_SHORT).show()
+
+        // 🔹 Navigate SubjectSelect
+        val intent = Intent(this, SubjectSelectActivity::class.java)
+        intent.putExtra("SESSION_ID", sessionId)
+        intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClassIds))
+        startActivity(intent)
+        finish()
+    }
+
+
 }
