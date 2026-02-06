@@ -193,7 +193,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
     }
 
 
-    private fun mapAttendanceToApiFormat(att: Attendance): JSONObject {
+    private suspend fun mapAttendanceToApiFormat(att: Attendance): JSONObject {
 
         val date=att.date
         val startTime=att.startTime
@@ -202,14 +202,15 @@ class SyncAttendanceToServer : AppCompatActivity(){
         val dataStartTime="$date $startTime:00"
 
         val dataEndTime="$date $endtime:00"
+        val classShort = db.classDao().getClassById(att.classId)?.classShortName ?: ""
 
         return JSONObject().apply {
             put("studentId", att.studentId)
             put("instId", att.instId)
             put("instShortName", att.instShortName ?: "")
-            put("academicYear",  year)
+            put("academicYear",  att.academicYear)
             put("classId", att.classId)
-            put("classShortName", att.classShortName ?: "")
+            put("classShortName", classShort ?: "")
             put("subjectId", att.subjectId ?: "")
             put("subjectCode", att.subjectId ?: "")
             put("subjectShortName", att.subjectTitle ?: "")
@@ -223,11 +224,11 @@ class SyncAttendanceToServer : AppCompatActivity(){
             put("attSchoolPeriodStartTime", att.startTime)
             put("attSchoolPeriodEndTime", att.endTime)
             put("period", att.period)
-            put("status", att.status)
+            // put("status", att.status)
             // You can extend more mappings as per your actual backend requirement
             put("studentClass", att.classShortName ?: "")
             put("attCodetitle", "present")
-            put("courseSelectionMode","mandatory")
+            put("courseSelectionMode","")
             put("stfId",att.teacherId)
             put("stfFML","")
             put("studId",att.studentId)
@@ -239,7 +240,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
             put("int_rollNo","")
             put("attCycleId","")
             put("attSessionId",att.sessionId)
-            put("attSchoolPeriodId","1")
+            put("attSchoolPeriodId",att.attSchoolPeriodId)
             put("attSchoolPeriodTitle","")
             put("attSessionStartDateTime",dataStartTime )
             put("attSessionEndDateTime",dataEndTime)
@@ -249,9 +250,9 @@ class SyncAttendanceToServer : AppCompatActivity(){
             put("attCategory","Regular")
             put("studAttComment","")
             put("attSessionStudId","")
-            put("attCodeId",att.atteId)
+            put("attCodeId","1")
             put("attCodeLngName","present")
-            put("attCode",att.status)
+            put("attCode","P")
             put("studAttStartDateTime",dataStartTime)
             put("studAttEndDateTime",dataEndTime)
             put("studAttTotalDuration","")
@@ -263,6 +264,6 @@ class SyncAttendanceToServer : AppCompatActivity(){
             put("toRemoveCoLecturerCpIds","")
             put("toAddCoLecturerCpIds","")
             put("status","A")
-        }
-    }
+
+        }    }
 }

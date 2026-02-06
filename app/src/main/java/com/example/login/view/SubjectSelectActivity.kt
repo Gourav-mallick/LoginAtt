@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.login.databinding.ActivityPeriodCourseSelectBinding
 import com.example.login.db.dao.AppDatabase
+import com.example.login.db.entity.Course
 import kotlinx.coroutines.launch
 
 
@@ -30,41 +31,68 @@ class SubjectSelectActivity : ComponentActivity() {
         setContentView(binding.root)
 
         db = AppDatabase.getDatabase(this)
+
+        // 🔹 FIRST read intent
         sessionId = intent.getStringExtra("SESSION_ID") ?: return
-        selectedClasses = intent.getStringArrayListExtra("SELECTED_CLASSES") ?: emptyList()
+        selectedClasses =
+            intent.getStringArrayListExtra("SELECTED_CLASSES") ?: emptyList()
 
-
-        // 🔹 Disable back press (both button and gesture)
+        // 🔹 Disable back
         val backCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                Toast.makeText(
-                    this@SubjectSelectActivity,
-                    "Back disabled on this screen",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this@SubjectSelectActivity, "Back disabled", Toast.LENGTH_SHORT).show()
             }
         }
         onBackPressedDispatcher.addCallback(this, backCallback)
 
-        // 🔹 Save app state so that reopening resumes here
+        // 🔹 Save state
         getSharedPreferences("APP_STATE", MODE_PRIVATE)
             .edit()
             .putBoolean("IS_IN_PERIOD_SELECT", true)
             .putString("SESSION_ID", sessionId)
             .apply()
 
-       // setupPeriodDropdown()
-        loadCourses()
+        // 🔹 NOW load preselected courses
+        lifecycleScope.launch {
+            val session = db.sessionDao().getSessionById(sessionId)
+            val teacherId = session?.teacherId ?: ""
 
-        binding.btnContinue.setOnClickListener {
-            handleContinue()
-        }
-   /*
-        binding.checkboxAddManualCourse.setOnCheckedChangeListener { _, isChecked ->
-            binding.inputManualCourseTitle.visibility = if (isChecked) android.view.View.VISIBLE else android.view.View.GONE
+            val preSelectedCourseIds =
+                db.coursePeriodDao().getCourseIdsForTeacherAndClasses(
+                    teacherId,
+                    selectedClasses
+                )
+
+            Log.d("PRESELECT", "Teacher=$teacherId → $preSelectedCourseIds")
+            // 🔹 ADD LOGS HERE
+            Log.d("DEBUG_SUBJECT", "SessionId = $sessionId")
+            Log.d("DEBUG_SUBJECT", "TeacherId = $teacherId")
+            Log.d("DEBUG_SUBJECT", "SelectedClasses = $selectedClasses")
+
+            val all = db.coursePeriodDao().getAllCoursePeriods()
+            Log.d("DEBUG_DB", "All CoursePeriods = $all")
+
+            val courses = db.courseDao().getAllCourses()
+
+            Log.d("COURSE_TABLE", "All Courses IDs = ${courses.map { it.courseId }}")
+            Log.d("PRESELECT", "PreSelected IDs = $preSelectedCourseIds")
+
+
+            for (p in all) {
+                Log.d("DEBUG_DB_ROW",
+                    "cpId=${p.cpId} teacher=${p.teacherId} class=${p.classId} course=${p.courseId}")
+            }
+
+            val test = db.coursePeriodDao()
+                .getCourseIdsForTeacherAndClasses(teacherId, selectedClasses)
+
+            Log.d("DEBUG_TEST_QUERY", "Result = $test")
+
+
+            loadCourses(preSelectedCourseIds)
         }
 
-    */
+        binding.btnContinue.setOnClickListener { handleContinue() }
     }
 
     /*
@@ -77,176 +105,117 @@ class SubjectSelectActivity : ComponentActivity() {
      */
 
     // 🔹 Load courses from DB
-    private fun loadCourses() {
+    private fun loadCourses(preSelected: List<String>) {
         lifecycleScope.launch {
             val courses = db.courseDao().getAllCourses()
 
-            val adapter = SubjectSelectAdapter(courses) { selectedIds ->
+            // 🔹 Sort → selected first
+            val sortedCourses = courses.sortedWith(
+                compareByDescending<Course> { preSelected.contains(it.courseId.trim()) }
+                    .thenBy { it.courseTitle }   // optional: alphabetical inside group
+            )
+
+            val adapter = SubjectSelectAdapter(
+                courses = sortedCourses,
+                preSelectedCourseIds = preSelected
+            ) { selectedIds ->
                 selectedCourseIds.clear()
                 selectedCourseIds.addAll(selectedIds)
             }
 
-            binding.recyclerViewCourses.layoutManager = LinearLayoutManager(this@SubjectSelectActivity)
+            Log.d("VERIFY_ALL", "PreSelected = $preSelected")
+
+            for (c in courses) {
+                val match = preSelected.contains(c.courseId.trim())
+                Log.d(
+                    "VERIFY_MATCH",
+                    "Course=${c.courseId} | Match=$match"
+                )
+            }
+
+
+            // ⭐ IMPORTANT — keep Activity list in sync initially
+            selectedCourseIds.clear()
+            selectedCourseIds.addAll(preSelected)
+
+            binding.recyclerViewCourses.layoutManager =
+                LinearLayoutManager(this@SubjectSelectActivity)
             binding.recyclerViewCourses.adapter = adapter
+            adapter.notifyDataSetChanged()
         }
     }
+
+
 
     // 🔹 Handle "Continue" button click
     private fun handleContinue() {
 
-    /*
-        val selectedPeriod = binding.spinnerPeriod.selectedItem?.toString()
-        if (selectedPeriod.isNullOrEmpty()) {
-            Toast.makeText(this, "Please select a period", Toast.LENGTH_SHORT).show()
-            return
-        }
-     */
-
-
-     //   val isManual = binding.checkboxAddManualCourse.isChecked
-      //  val manualCourseName = binding.inputManualCourseTitle.text.toString().trim()
-
-
         lifecycleScope.launch {
-            val db = AppDatabase.getDatabase(this@SubjectSelectActivity)
-            val isMultiClass = selectedClasses.size > 1
 
-/*
-            if (isManual) {
-                if (manualCourseName.isEmpty()) {
-                    Toast.makeText(this@PeriodCourseSelectActivity, "Please enter manual course name", Toast.LENGTH_SHORT).show()
+            val db = AppDatabase.getDatabase(this@SubjectSelectActivity)
+
+            val isNoCourse = selectedCourseIds.isEmpty()
+
+            if (isNoCourse) {
+                Toast.makeText(this@SubjectSelectActivity, "Please select course", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            try {
+
+                // --------------------------------------------------
+                // 1. Build FALLBACK (combined selected courses)
+                // --------------------------------------------------
+
+                val fallbackDetails = db.courseDao().getCourseDetailsForIds(selectedCourseIds)
+
+                if (fallbackDetails.isEmpty()) {
+                    Toast.makeText(this@SubjectSelectActivity, "No course details found", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
 
-                // 🔹 Create dummy IDs
-                val dummyCpId = java.util.UUID.randomUUID().toString().take(4)
-                val dummyCourseId = java.util.UUID.randomUUID().toString().take(4)
-                val dummySubjectId = java.util.UUID.randomUUID().toString().take(4)
+                val fallbackCpIds = fallbackDetails.mapNotNull { it.cpId }.distinct().joinToString(",")
+                val fallbackCourseIds = fallbackDetails.mapNotNull { it.courseId }.distinct().joinToString(",")
+                val fallbackCourseTitles = fallbackDetails.mapNotNull { it.courseTitle }.distinct().joinToString(",")
+                val fallbackCourseShortNames = fallbackDetails.mapNotNull { it.courseShortName }.distinct().joinToString(",")
+                val fallbackSubjectIds = fallbackDetails.mapNotNull { it.subjectId }.distinct().joinToString(",")
+                val fallbackSubjectTitles = fallbackDetails.mapNotNull { it.subjectTitle }.distinct().joinToString(",")
+                val fallbackClassShortNames = fallbackDetails.mapNotNull { it.classShortName }.distinct().joinToString(",")
+                val fallbackMpIds = fallbackDetails.mapNotNull { it.mpId }.distinct().joinToString(",")
+                val fallbackMpLongTitles = fallbackDetails.mapNotNull { it.mpLongTitle }.distinct().joinToString(",")
 
-                // 🔹 Update session + attendance with dummy data
-                for (classId in selectedClasses) {
-                    db.attendanceDao().updateAttendanceWithCourseDetails(
-                        sessionId = sessionId,
-                        cpId = dummyCpId,
-                        courseId = dummyCourseId,
-                        courseTitle = manualCourseName,
-                        subjectId = dummySubjectId,
-                        courseShortName = manualCourseName.take(6).uppercase(),
-                        subjectTitle = manualCourseName,
-                        classShortName = classId,
-                        mpId = "${System.currentTimeMillis()}",
-                        mpLongTitle = "Manual Added",
-                        period = selectedPeriod
-                    )
-                }
+                // --------------------------------------------------
+                // 2. Get all attendance rows for session
+                // --------------------------------------------------
 
-                db.sessionDao().updateSessionPeriodAndSubject(sessionId, selectedPeriod, dummyCourseId)
+                val allAttendance = db.attendanceDao().getAttendanceBySessionId(sessionId)
 
-                Toast.makeText(this@PeriodCourseSelectActivity, "Manual course added successfully", Toast.LENGTH_SHORT).show()
+                // --------------------------------------------------
+                // 3. Per-student mapping
+                // --------------------------------------------------
 
-                // 🔹 Clear resume flag when proceeding
-                getSharedPreferences("APP_STATE", MODE_PRIVATE)
-                    .edit()
-                    .remove("IS_IN_PERIOD_SELECT")
-                    .remove("SESSION_ID")
-                    .apply()
+                for (att in allAttendance) {
 
-                val intent =
-                    Intent(this@PeriodCourseSelectActivity, AttendanceOverviewActivity::class.java)
-                intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
-                intent.putExtra("SESSION_ID", sessionId)
-                startActivity(intent)
-                finish()
+                    val studentId = att.studentId
 
+                    // 🔎 Find matching schedule for this student
+                    val schedule = db.studentScheduleDao()
+                        .findScheduleForStudentAndCourses(studentId, selectedCourseIds)
 
+                    if (schedule != null) {
+                        // ==============================
+                        // 🎯 MATCH FOUND → Use student's course
+                        // ==============================
 
+                        val courseDetails = db.courseDao()
+                            .getCourseDetailsForIds(listOf(schedule.courseId))
+                            .firstOrNull()
 
-            }
+                        if (courseDetails != null) {
 
-
- */
-            val isMultiCourse = selectedCourseIds.size > 1
-            val isNoCourse = selectedCourseIds.isEmpty()
-
-            try {
-                when {
-                    //  CASE 1 / 2C — No course selected → Manual subject instance
-                    isNoCourse -> {
-                        Toast.makeText(this@SubjectSelectActivity, "Please select or add a course", Toast.LENGTH_SHORT).show()
-                    }
-
-                    //  CASE 1B / 2B — Multiple courses selected
-                    isMultiCourse -> {
-                        val courseDetails = db.courseDao().getCourseDetailsForIds(selectedCourseIds)
-
-                        if (courseDetails.isEmpty()) {
-                            Toast.makeText(this@SubjectSelectActivity, "No course details found", Toast.LENGTH_SHORT).show()
-                            return@launch
-                        }
-
-                        val combinedCpIds = courseDetails.mapNotNull { it.cpId }.joinToString(",")
-                        val combinedCourseIds = courseDetails.mapNotNull { it.courseId }.joinToString(",")
-                        val combinedCourseTitles = courseDetails.mapNotNull { it.courseTitle }.joinToString(",")
-                        val combinedCourseShortNames = courseDetails.mapNotNull { it.courseShortName }.joinToString(",")
-                        val combinedSubjectIds = courseDetails.mapNotNull { it.subjectId }.joinToString(",")
-                        val combinedSubjectTitles = courseDetails.mapNotNull { it.subjectTitle }.joinToString(",")
-                        val combinedClassShortNames = courseDetails.mapNotNull { it.classShortName }.distinct().joinToString(",")
-                        val combinedMpIds = courseDetails.mapNotNull { it.mpId }.distinct().joinToString(",")
-                        val combinedMpLongTitles = courseDetails.mapNotNull { it.mpLongTitle }.distinct().joinToString(",")
-
-                        // 🔹 Apply combined details to all selected classes
-                        for (classId in selectedClasses) {
-                            db.attendanceDao().updateAttendanceWithCourseDetails(
+                            db.attendanceDao().updateAttendanceWithCourseDetailsForStudent(
                                 sessionId = sessionId,
-                                cpId = combinedCpIds,
-                                courseId = combinedCourseIds,
-                                courseTitle = combinedCourseTitles,
-                                subjectId = combinedSubjectIds,
-                                courseShortName = combinedCourseShortNames,
-                                subjectTitle = combinedSubjectTitles,
-                                classShortName = combinedClassShortNames,
-                                mpId = combinedMpIds,
-                                mpLongTitle = combinedMpLongTitles,
-                                //period = selectedPeriod
-                            )
-                        }
-
-                        db.sessionDao().updateSessionPeriodAndSubject(sessionId,  combinedCourseIds)
-
-
-
-                        Toast.makeText(this@SubjectSelectActivity, "Maltiple course added successfully", Toast.LENGTH_SHORT).show()
-
-                        // 🔹 Clear resume flag when proceeding
-                        getSharedPreferences("APP_STATE", MODE_PRIVATE)
-                            .edit()
-                            .remove("IS_IN_PERIOD_SELECT")
-                            .remove("SESSION_ID")
-                            .apply()
-
-
-                        val intent = Intent(this@SubjectSelectActivity, AttendanceOverviewActivity::class.java)
-                        intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
-                        intent.putExtra("SESSION_ID", sessionId)
-                        startActivity(intent)
-                        finish()
-
-
-                    }
-
-                    // CASE 1A / 2A — Single course selected
-                    else -> {
-                        val courseId = selectedCourseIds.first()
-                        val courseDetails = db.courseDao().getCourseDetailsForIds(listOf(courseId)).firstOrNull()
-
-                        if (courseDetails == null) {
-                            Toast.makeText(this@SubjectSelectActivity, "Course details not found", Toast.LENGTH_SHORT).show()
-                            return@launch
-                        }
-
-                        for (classId in selectedClasses) {
-                            db.attendanceDao().updateAttendanceWithCourseDetails(
-                                sessionId = sessionId,
+                                studentId = studentId,
                                 cpId = courseDetails.cpId,
                                 courseId = courseDetails.courseId,
                                 courseTitle = courseDetails.courseTitle,
@@ -255,41 +224,74 @@ class SubjectSelectActivity : ComponentActivity() {
                                 subjectTitle = courseDetails.subjectTitle,
                                 classShortName = courseDetails.classShortName,
                                 mpId = courseDetails.mpId,
-                                mpLongTitle = courseDetails.mpLongTitle,
-                              //  period = selectedPeriod
+                                mpLongTitle = courseDetails.mpLongTitle
+                            )
+
+                            Log.d(
+                                "SCHEDULE_MATCH",
+                                "Student=$studentId → Course=${courseDetails.courseId} → Cp=${courseDetails.cpId}"
                             )
                         }
 
-                        db.sessionDao().updateSessionPeriodAndSubject(sessionId,  courseId)
+                    } else {
+                        // ==============================
+                        // ❌ NO MATCH → Use fallback (selected courses)
+                        // ==============================
 
-                        Toast.makeText(this@SubjectSelectActivity, "single course attendance added successfully", Toast.LENGTH_SHORT).show()
+                        db.attendanceDao().updateAttendanceWithCourseDetailsForStudent(
+                            sessionId = sessionId,
+                            studentId = studentId,
+                            cpId = fallbackCpIds,
+                            courseId = fallbackCourseIds,
+                            courseTitle = fallbackCourseTitles,
+                            subjectId = fallbackSubjectIds,
+                            courseShortName = fallbackCourseShortNames,
+                            subjectTitle = fallbackSubjectTitles,
+                            classShortName = fallbackClassShortNames,
+                            mpId = fallbackMpIds,
+                            mpLongTitle = fallbackMpLongTitles
+                        )
 
-                        // 🔹 Clear resume flag when proceeding
-                        getSharedPreferences("APP_STATE", MODE_PRIVATE)
-                            .edit()
-                            .remove("IS_IN_PERIOD_SELECT")
-                            .remove("SESSION_ID")
-                            .apply()
-
-
-                        val intent = Intent(this@SubjectSelectActivity, AttendanceOverviewActivity::class.java)
-                        intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
-                        intent.putExtra("SESSION_ID", sessionId)
-                        startActivity(intent)
-                        finish()
-
-
+                        Log.d(
+                            "SCHEDULE_FALLBACK",
+                            "Student=$studentId → Used fallback → CpIds=$fallbackCpIds"
+                        )
                     }
                 }
 
-                // ✅ Optional: Log final attendance
-                val allAttendance = db.attendanceDao().getAllAttendance()
-                for (record in allAttendance) {
-                    Log.d(
-                        "AttendanceLog",
-                        "Student: ${record.studentId}, Class: ${record.classId}, Status: ${record.status}, Courses: ${record.courseId}, Session: ${record.sessionId}"
-                    )
-                }
+
+                // --------------------------------------------------
+                // 4. Update session subject (CSV)
+                // --------------------------------------------------
+
+                db.sessionDao().updateSessionPeriodAndSubject(
+                    sessionId,
+                    fallbackCourseIds
+                )
+
+                logAllAttendance(sessionId)
+
+                // --------------------------------------------------
+                // 5. Clear resume state
+                // --------------------------------------------------
+
+                getSharedPreferences("APP_STATE", MODE_PRIVATE)
+                    .edit()
+                    .remove("IS_IN_PERIOD_SELECT")
+                    .remove("SESSION_ID")
+                    .apply()
+
+                Toast.makeText(this@SubjectSelectActivity, "Attendance mapped successfully", Toast.LENGTH_SHORT).show()
+
+                // --------------------------------------------------
+                // 6. Move to next screen
+                // --------------------------------------------------
+
+                val intent = Intent(this@SubjectSelectActivity, AttendanceOverviewActivity::class.java)
+                intent.putStringArrayListExtra("SELECTED_CLASSES", ArrayList(selectedClasses))
+                intent.putExtra("SESSION_ID", sessionId)
+                startActivity(intent)
+                finish()
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -299,5 +301,32 @@ class SubjectSelectActivity : ComponentActivity() {
     }
 
 
+
+    private suspend fun logAllAttendance(sessionId: String) {
+
+        val list = db.attendanceDao().getAttendanceBySessionId(sessionId)
+
+        Log.d("ATTENDANCE_DEBUG", "------ TOTAL = ${list.size} ------")
+
+        for (a in list) {
+            Log.d(
+                "ATTENDANCE_ROW",
+                """
+            StudentId      = ${a.studentId}
+            ClassId        = ${a.classId}
+            CpId           = ${a.cpId}
+            CourseId       = ${a.courseId}
+            CourseTitle    = ${a.courseTitle}
+            SubjectId      = ${a.subjectId}
+            SubjectTitle   = ${a.subjectTitle}
+            TeacherId      = ${a.teacherId}
+            MpId           = ${a.mpId}
+            SessionId      = ${a.sessionId}
+            Status         = ${a.status}
+            -----------------------------
+            """.trimIndent()
+            )
+        }
+    }
 
 }

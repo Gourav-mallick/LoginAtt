@@ -76,6 +76,10 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
             for (classId in selectedClasses) {
                 val students = db.studentsDao().getAllStudents().filter { it.classId == classId }
+                val classObj=db.classDao().getClassById(classId)
+                val classShortName = classObj?.classShortName ?: classId
+                Log.d("ATTENDANCE_DEBUG", "classShortName is=$classShortName")
+
                 val attendance = db.attendanceDao().getAttendancesForClass(sessionId, classId)
 
                 val totalStudents = students.size
@@ -91,7 +95,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
                 classSummaries.add(
                     ClassOverviewData(
-                        className = classId,
+                        className = classShortName,
                         totalStudents = totalStudents,
                         presentCount = presentCount,
                         absentCount = absentCount,
@@ -141,6 +145,8 @@ class AttendanceOverviewActivity : ComponentActivity() {
                 // Prepare JSON payload
                 val attArray = JSONArray()
                 for (att in attendanceList) {
+                    Log.d("SYNC_REQUEST msg", "$att")
+
                     attArray.put(mapAttendanceToApiFormat(att))
                 }
 
@@ -229,7 +235,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
     }
 
 
-    private fun mapAttendanceToApiFormat(att: Attendance): JSONObject {
+    private suspend fun mapAttendanceToApiFormat(att: Attendance): JSONObject {
         val date = att.date
         val year = date.split("-")[0]
         val startTime = att.startTime
@@ -237,13 +243,15 @@ class AttendanceOverviewActivity : ComponentActivity() {
         val dataStartTime = "$date $startTime:00"
         val dataEndTime = "$date $endTime:00"
 
+        val classShort = db.classDao().getClassById(att.classId)?.classShortName ?: ""
+
         return JSONObject().apply {
             put("studentId", att.studentId)
             put("instId", att.instId)
             put("instShortName", att.instShortName ?: "")
-            put("academicYear",  year)
+            put("academicYear",  att.academicYear)
             put("classId", att.classId)
-            put("classShortName", att.classShortName ?: "")
+            put("classShortName", classShort ?: "")
             put("subjectId", att.subjectId ?: "")
             put("subjectCode", att.subjectId ?: "")
             put("subjectShortName", att.subjectTitle ?: "")
@@ -257,7 +265,7 @@ class AttendanceOverviewActivity : ComponentActivity() {
             put("attSchoolPeriodStartTime", att.startTime)
             put("attSchoolPeriodEndTime", att.endTime)
             put("period", att.period)
-            put("status", att.status)
+           // put("status", att.status)
             // You can extend more mappings as per your actual backend requirement
             put("studentClass", att.classShortName ?: "")
             put("attCodetitle", "present")
@@ -283,9 +291,9 @@ class AttendanceOverviewActivity : ComponentActivity() {
             put("attCategory","Regular")
             put("studAttComment","")
             put("attSessionStudId","")
-            put("attCodeId",att.atteId)
+            put("attCodeId","1")
             put("attCodeLngName","present")
-            put("attCode",att.status)
+            put("attCode","P")
             put("studAttStartDateTime",dataStartTime)
             put("studAttEndDateTime",dataEndTime)
             put("studAttTotalDuration","")

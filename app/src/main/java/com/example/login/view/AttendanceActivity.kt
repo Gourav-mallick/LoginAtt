@@ -608,11 +608,6 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
         }
     }
 
-    // ---------------- End / Submit class ----------------
-    private fun showEndClassDialogForVisibleClass() {
-        val classroomId = currentVisibleClassroomId ?: return
-        showEndClassDialog(classroomId)
-    }
 
     // ----------------- End Class -----------------
     private fun showEndClassDialog(classroomId: String) {

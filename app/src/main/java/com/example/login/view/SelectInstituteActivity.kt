@@ -411,7 +411,7 @@ class SelectInstituteActivity : AppCompatActivity() {
                         subjectList.add(Subject(subjectId, subjectTitle))
                         courseList.add(Course(courseId, subjectId, courseTitle, courseTitle))
                        // classList.add(Class(classId, classShortName))
-                        coursePeriodList.add(CoursePeriod(cpId, courseId, classId, teacherId, mpId,mpLongTitle))
+                       // coursePeriodList.add(CoursePeriod(cpId, courseId, classId, teacherId, mpId,mpLongTitle))
                     }
 
                     // Save all in DB

@@ -185,7 +185,21 @@ class DataSyncRepository(private val context: Context) {
                 val obj = dataArray.getJSONObject(i)
                 subjects.add(Subject(obj.optString("subjectIds"), obj.optString("subjectTitles")))
                 courses.add(Course(obj.optString("courseIds"), obj.optString("subjectIds"), obj.optString("courseTitles"), obj.optString("courseTitles")))
-                coursePeriods.add(CoursePeriod(obj.optString("cpIds"), obj.optString("courseIds"), obj.optString("classIds"), obj.optString("teacherIds").replace(",", "").trim(), obj.optString("mpId"), obj.optString("mpLongTitle")))
+                val teacherIdsRaw = obj.optString("teacherIds")  // ",89,109,110,113,246,"
+                val teacherList = teacherIdsRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+                for (teacherId in teacherList) {
+                    coursePeriods.add(
+                        CoursePeriod(
+                            cpId = obj.optString("cpIds"),
+                            courseId = obj.optString("courseIds"),
+                            classId = obj.optString("classIds"),
+                            teacherId = teacherId,   // 🔹 ONE teacher per row
+                            mpId = obj.optString("mpId"),
+                            mpLongTitle = obj.optString("mpLongTitle")
+                        )
+                    )
+                }
             }
 
             db.subjectDao().insertAll(subjects)

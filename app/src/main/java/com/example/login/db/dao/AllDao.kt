@@ -206,6 +206,18 @@ interface StudentScheduleDao {
     @Query("UPDATE student_schedule SET syncStatus = :status WHERE scheduleId = :scheduleId")
     fun updateSyncStatus(scheduleId: String, status: String)
 
+    @Query("""
+SELECT * FROM student_schedule
+WHERE studentId = :studentId
+AND courseId IN (:courseIds)
+LIMIT 1
+""")
+    suspend fun findScheduleForStudentAndCourses(
+        studentId: String,
+        courseIds: List<String>
+    ): StudentSchedule?
+
+
     @Query("DELETE FROM student_schedule")
     suspend fun clear()
 }
@@ -218,6 +230,19 @@ interface CoursePeriodDao {
 
     @Query("SELECT * FROM course_periods")
     suspend fun getAllCoursePeriods(): List<CoursePeriod>
+
+
+    @Query("""
+    SELECT DISTINCT courseId 
+    FROM course_periods 
+    WHERE teacherId = :teacherId 
+    AND classId IN (:classIds)
+""")
+    suspend fun getCourseIdsForTeacherAndClasses(
+        teacherId: String,
+        classIds: List<String>
+    ): List<String>
+
 }
 
 
@@ -325,6 +350,36 @@ interface AttendanceDao {
     """)
     suspend fun updateAttendanceWithCourseDetails(
         sessionId: String,
+        cpId: String?,
+        courseId: String?,
+        courseTitle: String?,
+        courseShortName: String?,
+        subjectId: String?,
+        subjectTitle: String?,
+        classShortName: String?,
+        mpId: String?,
+        mpLongTitle: String?
+    )
+
+
+    @Query("""
+UPDATE attendance
+SET 
+    cpId = :cpId,
+    courseId = :courseId,
+    courseTitle = :courseTitle,
+    courseShortName = :courseShortName,
+    subjectId = :subjectId,
+    subjectTitle = :subjectTitle,
+    classShortName = :classShortName,
+    mpId = :mpId,
+    mpLongTitle = :mpLongTitle
+WHERE sessionId = :sessionId
+AND studentId = :studentId
+""")
+    suspend fun updateAttendanceWithCourseDetailsForStudent(
+        sessionId: String,
+        studentId: String,
         cpId: String?,
         courseId: String?,
         courseTitle: String?,
