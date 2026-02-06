@@ -44,7 +44,11 @@ class LoginActivity : AppCompatActivity() {
 
 
         btnLogin.setOnClickListener {
-            val baseUrl = edtUrl.text.toString().trim()
+            var baseUrl = edtUrl.text.toString().trim()
+            // AUTO CORRECT URL BASED ON YOUR 3 RULES
+            baseUrl = normalizeBaseUrl(baseUrl)
+            // Update textbox and continue login
+            edtUrl.setText(baseUrl)
             val username = edtUser.text.toString().trim()
             val password = edtPass.text.toString().trim()
 
@@ -254,5 +258,29 @@ class LoginActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+
+    private fun normalizeBaseUrl(input: String): String {
+        var url = input.trim().removeSuffix("/")
+
+        // CASE 1: only subdomain (testvps)
+        if (!url.startsWith("http") && !url.contains(".")) {
+            return "https://$url.digitaledu.in"
+        }
+
+        // CASE 2: starts with https://testvps (missing .digitaledu.in)
+        if (url.startsWith("https://") && !url.contains(".digitaledu.in")) {
+            val clean = url.removePrefix("https://")
+            return "https://$clean.digitaledu.in"
+        }
+
+        // CASE 3: testvps.digitaledu.in (missing https://)
+        if (!url.startsWith("https://") && url.contains(".digitaledu.in")) {
+            return "https://$url"
+        }
+
+        // Already correct
+        return url
     }
 }

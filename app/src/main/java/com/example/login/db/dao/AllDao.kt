@@ -15,8 +15,9 @@ import com.example.login.db.entity.Class
 import com.example.login.db.entity.CourseFullInfo
 import com.example.login.db.entity.CoursePeriod
 import com.example.login.db.entity.Institute
+import com.example.login.db.entity.SchoolPeriod
 import com.example.login.db.entity.Session
-
+import com.example.login.db.entity.StudentSchedule
 
 
 @Dao
@@ -164,7 +165,18 @@ interface CourseDao {
 
 }
 
+@Dao
+interface SchoolPeriodDao {
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(periods: List<SchoolPeriod>)
+
+    @Query("SELECT * FROM school_periods")
+    suspend fun getAll(): List<SchoolPeriod>
+
+    @Query("DELETE FROM school_periods")
+    suspend fun clear()
+}
 
 @Dao
 interface ClassDao {
@@ -181,6 +193,22 @@ interface ClassDao {
 
 }
 
+@Dao
+interface StudentScheduleDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(list: List<StudentSchedule>)
+
+    @Query("SELECT * FROM student_schedule")
+    suspend fun getAll(): List<StudentSchedule>
+
+
+    @Query("UPDATE student_schedule SET syncStatus = :status WHERE scheduleId = :scheduleId")
+    fun updateSyncStatus(scheduleId: String, status: String)
+
+    @Query("DELETE FROM student_schedule")
+    suspend fun clear()
+}
 
 
 @Dao
@@ -232,6 +260,8 @@ interface SessionDao {
     @Query("SELECT instId FROM sessions WHERE sessionId = :sessionId LIMIT 1")
     suspend fun getInstituteIdBySessionId(sessionId: String): String?
 
+    @Query("UPDATE sessions SET attSchoolPeriodId = :periodCsv WHERE sessionId = :sessionId")
+    suspend fun updateSessionPeriodIds(sessionId: String, periodCsv: String)
 
 }
 
@@ -343,6 +373,9 @@ interface AttendanceDao {
 
     @Query("SELECT * FROM attendance WHERE syncStatus = :status")
     suspend fun getPendingAttendancesByStatus(status: String): List<Attendance>
+
+    @Query("UPDATE attendance SET attSchoolPeriodId = :periodCsv WHERE sessionId = :sessionId")
+    suspend fun updateAttendancePeriodIds(sessionId: String, periodCsv: String)
 
 
 

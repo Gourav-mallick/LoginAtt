@@ -61,6 +61,13 @@ class SelectInstituteActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         // SearchView
         val searchInstitute = findViewById<SearchView>(R.id.searchInstitute)
+        searchInstitute.clearFocus()
+
+        searchInstitute.setOnQueryTextFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                searchInstitute.isIconified = false
+            }
+        }
 
         // 🔹 Get shared preferences
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
@@ -207,10 +214,13 @@ class SelectInstituteActivity : AppCompatActivity() {
                     val studentsDataFatchOk = repository.fetchAndSaveStudents(apiService, db, instIds)
                     val teachersDataFatchOk = repository.fetchAndSaveTeachers(apiService, db, instIds)
                     val subjectsDataFatchOk = repository.syncSubjectInstances(apiService, db)
+                    val periodDataFatchOk = repository.fetchAndSaveSchoolPeriods(apiService, db, instIds)
                     val deviceDataFatchOk = fetchDeviceDataToServer(apiService, db, normalizedBaseUrl, instIds)
+                    val studentSubjectSchedulingDataFatchOk = repository.fetchAndSaveStudentSchedulingData(apiService, db, instIds)
+
                     Log.d(TAG, "All data synced and device config stored locally.")
 
-                    val allApiCallOk = studentsDataFatchOk && teachersDataFatchOk && subjectsDataFatchOk && deviceDataFatchOk
+                    val allApiCallOk = studentsDataFatchOk && teachersDataFatchOk && subjectsDataFatchOk && deviceDataFatchOk &&periodDataFatchOk && studentSubjectSchedulingDataFatchOk
                     delay(2000)
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = ProgressBar.GONE

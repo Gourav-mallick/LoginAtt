@@ -71,6 +71,27 @@ data class Class(
     val classShortName: String
 ) : Parcelable
 
+@Entity(tableName = "school_periods")
+data class SchoolPeriod(
+    @PrimaryKey
+    val spId: String,
+    val spTitle: String,
+    val spStartTime: String,
+    val spEndTime: String,
+    val spIstTime: String, // 24 hr formatted start time from API
+    val instId: String
+)
+
+@Entity(tableName = "student_schedule")
+data class StudentSchedule(
+    @PrimaryKey val scheduleId: String,
+    val studentId: String,
+    val cpId: String,
+    val courseId: String,
+    val scheduleStartDate: String,
+    val scheduleEndDate: String?,
+    val syncStatus: String = "pending"
+)
 
 
 
@@ -90,7 +111,8 @@ data class Session(
     val isMerged: Int,
     val periodId: String,
     val syncStatus:String,
-    val isSubmitted: Int = 0
+    val isSubmitted: Int = 0,
+    val attSchoolPeriodId: String
 ) : Parcelable
 
 
@@ -124,7 +146,8 @@ data class Attendance(
     val subjectTitle: String? = null,       // Subject title
     val classShortName: String? = null,     // Human-readable class short name
     val mpId: String? = null,               // Master period ID / term ID
-    val mpLongTitle: String? = null         // Master period long title
+    val mpLongTitle: String? = null,         // Master period long title
+    val attSchoolPeriodId: String,
 ):Parcelable
 
 

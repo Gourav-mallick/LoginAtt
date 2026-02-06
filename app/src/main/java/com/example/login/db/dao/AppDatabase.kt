@@ -14,7 +14,8 @@ import com.example.login.db.entity.CoursePeriod
 import com.example.login.db.entity.Session
 import com.example.login.db.entity.ActiveClassCycle
 import com.example.login.db.entity.Institute
-
+import com.example.login.db.entity.SchoolPeriod
+import com.example.login.db.entity.StudentSchedule
 
 
 @Database(entities = [
@@ -27,9 +28,12 @@ import com.example.login.db.entity.Institute
     Session::class,
     Attendance::class,
     ActiveClassCycle::class,
-    Institute::class
+    Institute::class,
+    SchoolPeriod::class,
+    StudentSchedule::class,
+
 ],
-    version = 1, exportSchema = false)
+    version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun studentsDao(): StudentsDao
@@ -43,6 +47,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun activeClassCycleDao(): ActiveClassCycleDao
 
     abstract fun instituteDao():InstituteDao
+    abstract fun schoolPeriodDao(): SchoolPeriodDao
+    abstract fun studentScheduleDao(): StudentScheduleDao
+
 
     companion object {
         @Volatile
@@ -54,7 +61,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "app_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

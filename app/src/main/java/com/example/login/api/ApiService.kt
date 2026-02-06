@@ -159,4 +159,17 @@ interface ApiService {
     ): Response<ResponseBody>
 
 
+    @GET("sims-services/digitalsims/")
+    suspend fun getPeriodDetails(
+        @Query("r") r: String,
+        @Query("data") data: String
+    ): Response<ResponseBody>
+
+    @GET("sims-services/digitalsims/")
+    suspend fun getStudentScheduleList(
+        @Query("r") r: String = "api/v1/Schedule/GetStudList",
+        @Query("data") data: String
+    ): Response<ResponseBody>
+
+
 }
