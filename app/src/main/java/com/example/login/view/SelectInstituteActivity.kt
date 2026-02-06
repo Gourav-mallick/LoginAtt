@@ -31,6 +31,8 @@ import java.util.*
 import android.os.Build
 import android.provider.Settings
 import android.view.View
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import com.example.login.R
 import com.example.login.repository.DataSyncRepository
 import com.example.login.utility.CheckNetworkAndInternetUtils
@@ -54,6 +56,12 @@ class SelectInstituteActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_select_institute)
 
+
+
+        // 🔹 Prevent auto keyboard open
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+
+
         instituteSelectionLayout = findViewById(R.id.instituteSelectionLayout)
   //      edtUsername = findViewById(R.id.usernametap)
    //     edtPassword = findViewById(R.id.passwordtap)
@@ -61,12 +69,21 @@ class SelectInstituteActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         // SearchView
         val searchInstitute = findViewById<SearchView>(R.id.searchInstitute)
-        searchInstitute.clearFocus()
 
-        searchInstitute.setOnQueryTextFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                searchInstitute.isIconified = false
-            }
+// Prevent auto keyboard
+        searchInstitute.clearFocus()
+        searchInstitute.isIconified = true
+
+        searchInstitute.setOnClickListener {
+            searchInstitute.isIconified = false
+            searchInstitute.requestFocus()
+        }
+
+        instituteSelectionLayout.setOnTouchListener { _, _ ->
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(window.decorView.windowToken, 0)
+            searchInstitute.clearFocus()
+            false
         }
 
         // 🔹 Get shared preferences
@@ -258,6 +275,14 @@ class SelectInstituteActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        currentFocus?.clearFocus()
+
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(window.decorView.windowToken, 0)
+    }
+
     // ✅  Safe toast helper that works from any thread
     private fun showToast(message: String) {
         runOnUiThread {
@@ -265,174 +290,14 @@ class SelectInstituteActivity : AppCompatActivity() {
         }
     }
 
-    // get students and save to db
-    private suspend fun fetchAndSaveStudents(
-        apiService: ApiService,
-        db: AppDatabase,
-        baseUrl: String,
-        instIds: String
-    ) :Boolean  {
-        val rParam = "api/v1/StudentEnrollment/GetStudList"
-        val dataParam = "{\"studListParamData\":{\"actionType\":\"FingerPrint\",\"school_id\":\"$instIds\"}}"
-
-        val response = apiService.getStudents(rParam, dataParam)
-        if (response.isSuccessful && response.body() != null) {
-            val jsonString = response.body()!!.string()
-            val json = JSONObject(jsonString)
-            val collection = json.optJSONObject("collection")
-            val responseObj = collection?.optJSONObject("response")
-            val dataArray = responseObj?.optJSONArray("studentData") ?: JSONArray()
-
-            val studentsList = mutableListOf<Student>()
-            val classList = mutableListOf<Class>()
-
-            for (i in 0 until dataArray.length()) {
-                val obj = dataArray.getJSONObject(i)
-                val studentId = obj.optString("studentId", "")
-                val studentName = obj.optString("studentName", "")
-                val classId = obj.optString("classId", "")
-                val classShortName = obj.optString("classShortName", "")
-                val instId = obj.optString("instId", "")
-                studentsList.add(Student(studentId, studentName, classId, instId))
-                classList.add(Class(classId, classShortName))
-            }
-            db.studentsDao().insertAll(studentsList)
-            db.classDao().insertAll(classList)
-            Log.d(TAG, "Inserted ${studentsList} students.")
-            Log.d(TAG, "Inserted ${classList} classes.")
-            return true
-        } else {
-            Log.e(TAG, "STUDENT_API_FAILED: ${response.errorBody()?.string()}")
-            return false
-        }
-    }
 
 
 
 
-//Get teachers and save to db
-    private suspend fun fetchAndSaveTeachers(
-        apiService: ApiService,
-        db: AppDatabase,
-        normalizedBaseUrl: String,
-        instIds: String
-    ) :Boolean  {
-        val rParam = "api/v1/User/GetUserRegisteredDetails"
-        val dataParam = "{\"userRegParamData\":{\"userType\":\"staff\",\"registrationType\":\"FingerPrint\",\"school_id\":\"$instIds\"}}"
-
-        val fullUrl = "${normalizedBaseUrl}sims-services/digitalsims/?r=$rParam&data=$dataParam"
-        Log.d(TAG, "REQUEST_TEACHER_URL: $fullUrl")
-
-        val response = apiService.getTeachers(rParam, dataParam)
-        if (response.isSuccessful && response.body() != null) {
-            val jsonString = response.body()!!.string()
-            val json = JSONObject(jsonString)
-            val collection = json.optJSONObject("collection")
-            val responseObj = collection?.optJSONObject("response")
-            val dataArray = responseObj?.optJSONArray("userRegisteredData") ?: JSONArray()
-
-            val teachersList = mutableListOf<Teacher>()
-            for (i in 0 until dataArray.length()) {
-                val obj = dataArray.getJSONObject(i)
-
-                val staffProfile= obj.optString("staffProfile", "")
-                if (staffProfile.equals("teacher", ignoreCase = true)) {
-                    // Only process if userProfile is "teacher"
-                    val staffId = obj.optString("staffId", "")
-                    val staffName = obj.optString("staffName", "")
-                    val instId = obj.optString("instId", "")
-                    teachersList.add(Teacher(staffId, staffName, instId))
-                }
-
-            }
-            db.teachersDao().insertAll(teachersList)
-            Log.d(TAG, "Inserted teachers ${teachersList} .")
-            return true
-        } else {
-            Log.e(TAG, "TEACHER_API_FAILED: ${response.errorBody()?.string()}")
-            return false
-        }
-    }
 
 
 
-    //get subject instances data and normalize into different table like coursePero
-    private suspend fun syncSubjectInstances(
-        apiService: ApiService,
-         db: AppDatabase,
-        normalizedBaseUrl: String,
-        instIds: String
-    ) :Boolean  {
-        val rParam = "api/v1/CoursePeriod/SubjectInstances"
-        val dataParam = "{\"cpParamData\":{\"actionType\":\"markCpAttendance2\"}}"
 
-        val fullUrl = "${normalizedBaseUrl}sims-services/digitalsims/?r=$rParam&data=$dataParam"
-        Log.d(TAG, "REQUEST_subjectInstance_URL: $fullUrl")
-
-
-
-        val response = apiService.getSubjectInstances(rParam, dataParam)
-        if (response.isSuccessful && response.body() != null) {
-                    val jsonString = response.body()!!.string()
-                    Log.d(TAG, "SUBJECT_INSTANCE_RESPONSE: $jsonString")
-
-                    val json = JSONObject(jsonString)
-                    val collection = json.optJSONObject("collection")
-                    val responseObj = collection?.optJSONObject("response")
-                    val dataArray = responseObj?.optJSONArray("subjectInstancesData")
-
-                    if (dataArray == null || dataArray.length() == 0) {
-                        Log.w(TAG, "No subject instance data found.")
-                        Toast.makeText(this@SelectInstituteActivity, "No subject instance data found.", Toast.LENGTH_LONG).show()
-                        return false
-                    }
-
-
-                    val coursePeriodList = mutableListOf<CoursePeriod>()
-                    val courseList = mutableListOf<Course>()
-                    val subjectList = mutableListOf<Subject>()
-                   // val classList = mutableListOf<Class>()
-
-                    for (i in 0 until dataArray.length()) {
-                        val obj = dataArray.getJSONObject(i)
-
-                        val cpId = obj.optString("cpIds")
-                        val courseId = obj.optString("courseIds")
-                        val subjectId = obj.optString("subjectIds")
-                        val subjectTitle = obj.optString("subjectTitles")
-                        val courseTitle = obj.optString("courseTitles")
-                        val classId = obj.optString("classIds")
-                        val classShortName = obj.optString("classShortNames")
-                        val mpId = obj.optString("mpId")
-                        val mpLongTitle = obj.optString("mpLongTitle")
-                        val teacherId = obj.optString("teacherIds").replace(",", "").trim()
-
-                        // Normalize data
-                        subjectList.add(Subject(subjectId, subjectTitle))
-                        courseList.add(Course(courseId, subjectId, courseTitle, courseTitle))
-                       // classList.add(Class(classId, classShortName))
-                       // coursePeriodList.add(CoursePeriod(cpId, courseId, classId, teacherId, mpId,mpLongTitle))
-                    }
-
-                    // Save all in DB
-                    db.subjectDao().insertAll(subjectList)
-                    db.courseDao().insertAll(courseList)
-                   // db.classDao().insertAll(classList)
-                    db.coursePeriodDao().insertAll(coursePeriodList)
-
-
-                    Log.d(TAG, "DB_INSERT_SUCCESS: ${coursePeriodList} records saved")
-                    Log.d(TAG, "DB_INSERT_Subjects: ${subjectList} records saved")
-                    Log.d(TAG, "DB_INSERT_course: ${courseList} records saved")
-                  //  Log.d(TAG, "DB_INSERT_class: ${classList} records saved")
-                    return true
-        } else {
-                    Log.e(TAG, "API Error: ${response.errorBody()?.string()}")
-                    return false
-        }
-
-
-    }
 
 
 

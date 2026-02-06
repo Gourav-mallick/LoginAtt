@@ -69,6 +69,22 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
 
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:hint="Search subject..."
+            android:padding="8dp"
+            android:background="@android:drawable/edit_text"
+            android:inputType="text"
+            android:focusable="false"
+            android:focusableInTouchMode="false"
+            android:clickable="true"
+            app:layout_constraintTop_toBottomOf="@id/tvSelectCourses"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewCourses"
             android:layout_width="0dp"
@@ -78,33 +94,8 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.52"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tvSelectCourses" />
-<!--
-    <CheckBox
-        android:id="@+id/checkboxAddManualCourse"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="20dp"
-        android:text="Add manual course if not in list"
-        app:layout_constraintBottom_toTopOf="@id/inputManualCourseTitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/recyclerViewCourses" />
+            app:layout_constraintTop_toBottomOf="@+id/etSearch" />
 
-    <EditText
-        android:id="@+id/inputManualCourseTitle"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Enter course/subject name manually"
-        android:visibility="gone"
-        android:inputType="textCapWords"
-        app:layout_constraintTop_toBottomOf="@id/checkboxAddManualCourse"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnContinue"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="8dp" />
--->
     <Button
         android:id="@+id/btnContinue"
         android:layout_width="0dp"

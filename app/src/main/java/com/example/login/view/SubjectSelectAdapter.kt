@@ -15,16 +15,19 @@ class SubjectSelectAdapter(
 ) : RecyclerView.Adapter<SubjectSelectAdapter.CourseViewHolder>() {
 
     private val selectedCourses = mutableSetOf<String>()
+    private var originalList: List<Course> = courses.toList()
+    private var filteredList: MutableList<Course> = courses.toMutableList()
 
-    init {
-        selectedCourses.addAll(preSelectedCourseIds.map { it.trim() })
-        Log.d("ADAPTER_INIT", "PreSelected = $selectedCourses")
 
-        Log.d("ADAPTER_LIST", "Courses size = ${courses}")
-        Log.d("ADAPTER_LIST", "Course IDs = ${courses.map { it.courseId }}")
-        // notify activity initial selection
-        onSelectionChanged(selectedCourses.toList())
-    }
+//    init {
+//        selectedCourses.addAll(preSelectedCourseIds.map { it.trim() })
+//        Log.d("ADAPTER_INIT", "PreSelected = $selectedCourses")
+//
+//        Log.d("ADAPTER_LIST", "Courses size = ${courses}")
+//        Log.d("ADAPTER_LIST", "Course IDs = ${courses.map { it.courseId }}")
+//        // notify activity initial selection
+//        onSelectionChanged(selectedCourses.toList())
+//    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CourseViewHolder {
         val binding = ItemCourseCheckboxBinding.inflate(
@@ -35,23 +38,50 @@ class SubjectSelectAdapter(
         return CourseViewHolder(binding)
     }
 
+//    override fun onBindViewHolder(holder: CourseViewHolder, position: Int) {
+//
+//        val course = filteredList[position]
+//        Log.d("RAW_COURSE", course.toString())
+//
+//        holder.binding.checkboxCourse.setOnCheckedChangeListener(null)
+//
+//        val isSelected = selectedCourses.any {
+//            it.trim() == course.courseId.trim()
+//        }
+//
+//        Log.d(
+//            "CHECK_MATCH",
+//            "Bind Course=${course.courseId} | Selected=$selectedCourses | isChecked=$isSelected"
+//        )
+//
+//        holder.binding.checkboxCourse.isChecked = isSelected
+//
+//        holder.binding.checkboxCourse.text =
+//            "${course.courseTitle} (${course.courseShortName})"
+//
+//        holder.binding.checkboxCourse.setOnCheckedChangeListener { _, isChecked ->
+//
+//            if (isChecked) {
+//                selectedCourses.add(course.courseId.trim())
+//            } else {
+//                selectedCourses.remove(course.courseId.trim())
+//            }
+//
+//            Log.d("CHECK_CLICK", "Now Selected = $selectedCourses")
+//
+//            onSelectionChanged(selectedCourses.toList())
+//        }
+//    }
+
     override fun onBindViewHolder(holder: CourseViewHolder, position: Int) {
 
-        val course = courses[position]
-        Log.d("RAW_COURSE", course.toString())
+        val course = filteredList[position]
 
         holder.binding.checkboxCourse.setOnCheckedChangeListener(null)
 
-        val isSelected = selectedCourses.any {
-            it.trim() == course.courseId.trim()
-        }
-
-        Log.d(
-            "CHECK_MATCH",
-            "Bind Course=${course.courseId} | Selected=$selectedCourses | isChecked=$isSelected"
-        )
-
-        holder.binding.checkboxCourse.isChecked = isSelected
+        // Always unchecked initially
+        holder.binding.checkboxCourse.isChecked =
+            selectedCourses.contains(course.courseId.trim())
 
         holder.binding.checkboxCourse.text =
             "${course.courseTitle} (${course.courseShortName})"
@@ -64,16 +94,32 @@ class SubjectSelectAdapter(
                 selectedCourses.remove(course.courseId.trim())
             }
 
-            Log.d("CHECK_CLICK", "Now Selected = $selectedCourses")
-
             onSelectionChanged(selectedCourses.toList())
         }
     }
 
-    override fun getItemCount() = courses.size
+    override fun getItemCount(): Int = filteredList.size
 
     inner class CourseViewHolder(val binding: ItemCourseCheckboxBinding) :
         RecyclerView.ViewHolder(binding.root)
+
+
+    fun filter(query: String) {
+        val q = query.lowercase().trim()
+
+        filteredList = if (q.isEmpty()) {
+            originalList.toMutableList()
+        } else {
+            originalList.filter {
+                it.courseTitle.lowercase().contains(q) ||
+                        it.courseShortName.lowercase().contains(q) ||
+                        it.courseId.lowercase().contains(q)
+            }.toMutableList()
+        }
+
+        notifyDataSetChanged()
+    }
+
 }
 
 

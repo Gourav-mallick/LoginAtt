@@ -121,18 +121,19 @@ class SyncAttendanceToServer : AppCompatActivity(){
                     }
 
                     val attArray = JSONArray()
-//                    for (att in sessionAttendances) {
-//                        attArray.put(mapAttendanceToApiFormat(att))
-//                    }
-
                     for (att in sessionAttendances) {
                         Log.d("SYNC_REQUEST msg", "$att")
                         val mappedList = mapAttendanceToApiFormat(att)
 
                         for (json in mappedList) {
                             attArray.put(json)
+                            // 🔹 ADD THIS LINE
+                            Log.d("FINAL_JSON", json.toString())
                         }
                     }
+
+// 🔹 ADD THIS LINE
+                    Log.d("SYNC_COUNT", "Total objects prepared = ${attArray.length()}")
 
                     val requestBodyJson = JSONObject().apply {
                         put("attParamDataObj", JSONObject().apply {
@@ -214,11 +215,13 @@ class SyncAttendanceToServer : AppCompatActivity(){
 
         val classShort = db.classDao().getClassById(att.classId)?.classShortName ?: ""
 
-        val periodIds = att.attSchoolPeriodId
-            ?.split(",")
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?: listOf("")
+        val periodIds = if (!att.attSchoolPeriodId.isNullOrBlank()) {
+            att.attSchoolPeriodId.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+        } else {
+            listOf("") // fallback single
+        }
 
         val result = mutableListOf<JSONObject>()
 
@@ -229,7 +232,7 @@ class SyncAttendanceToServer : AppCompatActivity(){
                 put("studentId", att.studentId)
                 put("instId", att.instId)
                 put("instShortName", att.instShortName ?: "")
-                put("academicYear", att.academicYear)
+                put("academicYear",  att.academicYear)
                 put("classId", att.classId)
                 put("classShortName", classShort)
                 put("subjectId", att.subjectId ?: "")
@@ -238,32 +241,53 @@ class SyncAttendanceToServer : AppCompatActivity(){
                 put("courseId", att.courseId ?: "")
                 put("courseShortName", att.courseShortName ?: "")
                 put("cpId", att.cpId ?: "")
+                put("cpShortName", "")
                 put("mpId", att.mpId ?: "")
                 put("mpShortName", att.mpLongTitle ?: "")
                 put("attDate", att.date)
                 put("attSchoolPeriodStartTime", att.startTime)
                 put("attSchoolPeriodEndTime", att.endTime)
                 put("period", att.period)
-                put("studentClass", att.classShortName ?: "")
+                // put("status", att.status)
+                // You can extend more mappings as per your actual backend requirement
+                put("studentClass", classShort)
                 put("attCodetitle", "present")
-                put("stfId", att.teacherId)
-                put("studentName", att.studentName)
-                put("studAltId", att.atteId)
-                put("attSessionId", att.sessionId)
-
-                // 🔴 IMPORTANT → ONE PERIOD ONLY
-                put("attSchoolPeriodId", spId)
-
-                put("attSessionStartDateTime", dataStartTime)
-                put("attSessionEndDateTime", dataEndTime)
-                put("studAttStartDateTime", dataStartTime)
-                put("studAttEndDateTime", dataEndTime)
-
-                put("attCategory", "Regular")
-                put("attCodeId", "1")
-                put("attCodeLngName", "present")
-                put("attCode", "P")
-                put("status", "A")
+                put("courseSelectionMode","")
+                put("stfId",att.teacherId)
+                put("stfFML","")
+                put("studId",att.studentId)
+                put("studfFML","")
+                put("studfLFM","")
+                put("studentName",att.studentName)
+                put("studAltId",att.atteId)
+                put("studRollNo","")
+                put("int_rollNo","")
+                put("attCycleId","")
+                put("attSessionId",att.sessionId)
+                put("attSchoolPeriodId",spId)
+                put("attSchoolPeriodTitle","")
+                put("attSessionStartDateTime",dataStartTime )
+                put("attSessionEndDateTime",dataEndTime)
+                put("attCapturingIntervalDateTime","")
+                put("attCapturingIntervalInSec","")
+                put("attCapturingCycleState","")
+                put("attCategory","Regular")
+                put("studAttComment","")
+                put("attSessionStudId","")
+                put("attCodeId","1")
+                put("attCodeLngName","present")
+                put("attCode","P")
+                put("studAttStartDateTime",dataStartTime)
+                put("studAttEndDateTime",dataEndTime)
+                put("studAttTotalDuration","")
+                put("atsaId","")
+                put("atsaIsProxy","")
+                put("atsaDistanceDeltaInMeter","")
+                put("isSelfUsrAttMarked","")
+                put("attCoLectureCpIds","")
+                put("toRemoveCoLecturerCpIds","")
+                put("toAddCoLecturerCpIds","")
+                put("status","A")
             }
 
             result.add(obj)

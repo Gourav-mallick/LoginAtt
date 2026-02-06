@@ -4,6 +4,7 @@ package com.example.login.view
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -13,7 +14,7 @@ import com.example.login.databinding.ActivityPeriodCourseSelectBinding
 import com.example.login.db.dao.AppDatabase
 import com.example.login.db.entity.Course
 import kotlinx.coroutines.launch
-
+import android.view.inputmethod.InputMethodManager
 
 
 class SubjectSelectActivity : ComponentActivity() {
@@ -29,6 +30,28 @@ class SubjectSelectActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityPeriodCourseSelectBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+//        binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
+//            if (hasFocus) {
+//                binding.etSearch.post {
+//                    val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+//                    imm.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
+//                }
+//            }
+//        }
+
+        binding.etSearch.setOnClickListener {
+            binding.etSearch.isFocusableInTouchMode = true
+            binding.etSearch.requestFocus()
+
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        // 🔹 Prevent auto keyboard open
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+
+
 
         db = AppDatabase.getDatabase(this)
 
@@ -95,6 +118,14 @@ class SubjectSelectActivity : ComponentActivity() {
         binding.btnContinue.setOnClickListener { handleContinue() }
     }
 
+    override fun onResume() {
+        super.onResume()
+        currentFocus?.clearFocus()
+
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(window.decorView.windowToken, 0)
+    }
+
     /*
     // 🔹 Predefined period dropdown (later can be dynamic)
     private fun setupPeriodDropdown() {
@@ -142,6 +173,29 @@ class SubjectSelectActivity : ComponentActivity() {
                 LinearLayoutManager(this@SubjectSelectActivity)
             binding.recyclerViewCourses.adapter = adapter
             adapter.notifyDataSetChanged()
+
+
+
+
+            binding.etSearch.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    val query = s?.toString() ?: ""
+                    adapter.filter(query)
+                }
+            })
+
+            binding.recyclerViewCourses.setOnTouchListener { _, _ ->
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
+                binding.etSearch.clearFocus()
+                false
+            }
+
+
         }
     }
 
