@@ -39,8 +39,9 @@ class LoginActivity : AppCompatActivity() {
         // 🔹 Autofill saved login details if available
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
         edtUrl.setText(prefs.getString("baseUrl", ""))
-        edtUser.setText(prefs.getString("username", ""))
-        edtPass.setText(prefs.getString("password", ""))
+        // Always keep username & password empty
+        edtUser.setText("")
+        edtPass.setText("")
 
 
         btnLogin.setOnClickListener {
