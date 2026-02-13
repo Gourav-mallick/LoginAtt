@@ -6,15 +6,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.login"
+    namespace = "com.digitaledu.RfidAttendance2"
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.login"
         minSdk = 19
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

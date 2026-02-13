@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.login">
+    package="com.digitaledu.RfidAttendance2">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -29,7 +29,7 @@
 
 
         <activity
-            android:name=".view.SplashActivity"
+            android:name="com.digitaledu.RfidAttendance2.view.SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -39,20 +39,20 @@
         </activity>
 
         <activity
-            android:name=".view.CheckConfigActivity"
+            android:name="com.digitaledu.RfidAttendance2.view.CheckConfigActivity"
             android:exported="true" />
 
-        <activity android:name=".view.LoginActivity" />
+        <activity android:name="com.digitaledu.RfidAttendance2.view.LoginActivity" />
 
         <!-- Other activities -->
-        <activity android:name=".view.SelectInstituteActivity"
+        <activity android:name="com.digitaledu.RfidAttendance2.view.SelectInstituteActivity"
             android:windowSoftInputMode="stateHidden|adjustResize"/>
-        <activity android:name=".view.AttendanceActivity" />
-        <activity android:name=".view.ClassSelectActivity"/>
-        <activity android:name=".view.SubjectSelectActivity"
+        <activity android:name="com.digitaledu.RfidAttendance2.view.AttendanceActivity" />
+        <activity android:name="com.digitaledu.RfidAttendance2.view.ClassSelectActivity"/>
+        <activity android:name="com.digitaledu.RfidAttendance2.view.SubjectSelectActivity"
             android:windowSoftInputMode="stateHidden|adjustResize"/>
-        <activity android:name=".view.AttendanceOverviewActivity"/>
-        <activity android:name=".view.SyncAttendanceToServer"/>
+        <activity android:name="com.digitaledu.RfidAttendance2.view.AttendanceOverviewActivity"/>
+        <activity android:name="com.digitaledu.RfidAttendance2.view.SyncAttendanceToServer"/>
 
 
     </application>
