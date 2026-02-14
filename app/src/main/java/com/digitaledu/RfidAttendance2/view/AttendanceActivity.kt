@@ -123,13 +123,24 @@ class AttendanceActivity : AppCompatActivity() {
         val tag = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
         val tagId = tag.id.joinToString(":") { String.format("%02X", it) }
         Log.d(TAG, "Tag UID: $tagId")
+        Log.d(TAG, "=========== CARD BASIC INFO ===========")
+        Log.d(TAG, "UID: ${tag.id.joinToString(":") { "%02X".format(it) }}")
+        Log.d(TAG, "TechList: ${tag.techList.joinToString()}")
+        Log.d(TAG, "=======================================")
         readCustomCardData(tag)
+
     }
 
     // ---------------- NFC reading  ----------------
     private fun readCustomCardData(tag: Tag) {
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
         val keyHex = prefs.getString("cpass", null)
+
+        Log.d(TAG, "=========== KEY DEBUG ===========")
+        Log.d(TAG, "=========== SERVER KEY DEBUG ===========")
+        Log.d(TAG, "Server Key HEX: $keyHex")
+        Log.d(TAG, "HEX Length: ${keyHex?.length}")       // MUST be 12
+
         if (keyHex.isNullOrEmpty()) {
             Toast.makeText(this, "Missing authentication key (cpass)!", Toast.LENGTH_LONG).show()
             Log.e(TAG, "No key found in SharedPreferences.")
@@ -153,10 +164,27 @@ class AttendanceActivity : AppCompatActivity() {
             return
         }
 
+        Log.d(TAG, "=========== CARD MEMORY INFO ===========")
+        Log.d(TAG, "Type: ${mifare.type}")
+        Log.d(TAG, "Sector count: ${mifare.sectorCount}")
+        Log.d(TAG, "Block count: ${mifare.blockCount}")
+        Log.d(TAG, "========================================")
         try {
             mifare.connect()
-            val sectorIndex = 0
+
+            val detectedSector = findSectorWithData(mifare, keyBytes)
+
+            if (detectedSector == -1) {
+                Toast.makeText(this, "No readable data found on card", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            Log.d(TAG, "Using detected sector: $detectedSector")
+
+
+            val sectorIndex = detectedSector
             val auth = mifare.authenticateSectorWithKeyA(sectorIndex, keyBytes)
+
             if (!auth) {
                 Toast.makeText(this, "Authentication failed!", Toast.LENGTH_SHORT).show()
                 Log.e(TAG, "Authentication failed.")
@@ -1081,6 +1109,63 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
 //        return result.distinct()
 //    }
 
+
+
+    private fun findSectorWithData(mifare: MifareClassic, serverKey: ByteArray): Int {
+
+        Log.d(TAG, "Trying authentication with SERVER key first...")
+
+        // ---------- STEP 1: Try SERVER KEY ----------
+        for (sector in 0 until mifare.sectorCount) {
+
+            val keyLog = serverKey.joinToString(" ") { "%02X".format(it) }
+            Log.d(TAG, "Trying Sector $sector with Server Key: $keyLog")
+
+            val authA = mifare.authenticateSectorWithKeyA(sector, serverKey)
+            val authB = mifare.authenticateSectorWithKeyB(sector, serverKey)
+
+            Log.d(TAG, "Sector $sector -> KeyA=$authA | KeyB=$authB")
+
+            if (authA || authB) {
+                Log.d(TAG, ">>> AUTH SUCCESS with SERVER KEY at Sector $sector <<<")
+                return sector
+            }
+        }
+
+        Log.e(TAG, "Server key failed on all sectors. Trying COMMON KEYS...")
+
+        // ---------- STEP 2: Try COMMON DEFAULT KEYS ----------
+        val commonKeysHex = arrayOf(
+            "FFFFFFFFFFFF",   // Default key
+            "A0A1A2A3A4A5",   // Transport key
+            "D3F7D3F7D3F7",   // NXP MAD key
+            "000000000000"    // Blank key
+        )
+
+        for (hex in commonKeysHex) {
+
+            val testKey = hexStringToByteArray(hex)
+            val keyLog = testKey.joinToString(" ") { "%02X".format(it) }
+
+            Log.d(TAG, "Trying COMMON KEY: $hex")
+
+            for (sector in 0 until mifare.sectorCount) {
+
+                val authA = mifare.authenticateSectorWithKeyA(sector, testKey)
+                val authB = mifare.authenticateSectorWithKeyB(sector, testKey)
+
+                Log.d(TAG, "Sector $sector -> KeyA=$authA | KeyB=$authB")
+
+                if (authA || authB) {
+                    Log.d(TAG, ">>> AUTH SUCCESS with COMMON KEY $hex at Sector $sector <<<")
+                    return sector
+                }
+            }
+        }
+
+        Log.e(TAG, "No key matched this card (Server + Common keys failed)")
+        return -1
+    }
 
 
 }
