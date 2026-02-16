@@ -100,31 +100,47 @@ class AttendanceActivity : AppCompatActivity() {
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         if (nfcAdapter == null) {
-            Toast.makeText(this, "NFC not supported on this device", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "NFC not supported", Toast.LENGTH_LONG).show()
             return
         }
 
-        pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        if (!nfcAdapter!!.isEnabled) {
+            Toast.makeText(this, "Please enable NFC", Toast.LENGTH_LONG).show()
+            return
+        }
 
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, null, null)
+        nfcAdapter!!.enableReaderMode(
+            this,
+            { tag ->
+                runOnUiThread {
+                    val uid = tag.id.joinToString(":") { "%02X".format(it) }
+                    Log.d(TAG, "ReaderMode UID: $uid")
+                    readCustomCardData(tag)
+                }
+            },
+            NfcAdapter.FLAG_READER_NFC_A or
+                    NfcAdapter.FLAG_READER_NFC_B or
+                    NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
+            null
+        )
     }
+
 
     override fun onPause() {
         super.onPause()
-        try { nfcAdapter?.disableForegroundDispatch(this) } catch (_: Exception) {}
+        try {
+            nfcAdapter?.disableReaderMode(this)
+        } catch (_: Exception) {}
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        val tag = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
-        val tagId = tag.id.joinToString(":") { String.format("%02X", it) }
-        Log.d(TAG, "Tag UID: $tagId")
-        readCustomCardData(tag)
-    }
+
+//    override fun onNewIntent(intent: Intent) {
+//        super.onNewIntent(intent)
+//        val tag = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
+//        val tagId = tag.id.joinToString(":") { String.format("%02X", it) }
+//        Log.d(TAG, "Tag UID: $tagId")
+//        readCustomCardData(tag)
+//    }
 
     // ---------------- NFC reading  ----------------
     private fun readCustomCardData(tag: Tag) {
@@ -145,6 +161,7 @@ class AttendanceActivity : AppCompatActivity() {
         Log.d(TAG, "Key bytes actual data: ${keyBytes.toString()}")
 
 
+        Log.d(TAG, "TechList: ${tag.techList.joinToString()}")
 
         val mifare = MifareClassic.get(tag)
         if (mifare == null) {
