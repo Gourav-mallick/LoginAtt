@@ -28,6 +28,10 @@ import java.lang.Exception
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.widget.ImageView
+import android.widget.PopupMenu
+import com.digitaledu.RfidAttendance2.R
+
 class AttendanceOverviewActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityAttendanceOverviewBinding
@@ -42,6 +46,26 @@ class AttendanceOverviewActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityAttendanceOverviewBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        val menuBtn = findViewById<ImageView>(R.id.btnMenu)
+
+        menuBtn.setOnClickListener { view ->
+            val popup = PopupMenu(this, view)
+            popup.menuInflater.inflate(R.menu.menu_attendance, popup.menu)
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+
+                    R.id.menu_cancel_session -> {
+                        confirmCancelSession()
+                        true
+                    }
+
+                    else -> false
+                }
+            }
+            popup.show()
+        }
 
         db = AppDatabase.getDatabase(this)
         selectedClasses = intent.getStringArrayListExtra("SELECTED_CLASSES") ?: emptyList()
@@ -70,6 +94,71 @@ class AttendanceOverviewActivity : ComponentActivity() {
 
     */
         }
+    }
+
+    private fun confirmCancelSession() {
+
+        if (sessionId.isBlank()) {
+            Toast.makeText(this, "No active session!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Cancel Session")
+            .setMessage("This will DELETE this session and all attendance.\nAre you sure?")
+            .setCancelable(false)
+            .setPositiveButton("Yes") { _, _ ->
+                cancelCurrentSession()
+            }
+            .setNegativeButton("No", null)
+            .show()
+    }
+    private fun cancelCurrentSession() {
+
+        if (sessionId.isBlank()) return
+
+        lifecycleScope.launch {
+
+            val db = AppDatabase.getDatabase(this@AttendanceOverviewActivity)
+
+            try {
+
+                // 1️⃣ Delete attendance of this session
+                db.attendanceDao().deleteAttendanceBySessionId(sessionId)
+
+                // 2️⃣ Delete session
+                db.sessionDao().deleteSessionById(sessionId)
+
+                // 3️⃣ Delete ActiveClassCycle rows related to this session (if any)
+                db.activeClassCycleDao().deleteBySessionId(sessionId)
+
+                // 4️⃣ Clear saved cycle prefs (if stored earlier)
+                getSharedPreferences("AttendancePrefs", MODE_PRIVATE)
+                    .edit().clear().apply()
+
+                Toast.makeText(
+                    this@AttendanceOverviewActivity,
+                    "Session cancelled successfully",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                // 5️⃣ Go back to fresh Attendance screen
+                restartFresh()
+
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@AttendanceOverviewActivity,
+                    "Error cancelling session",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+    private fun restartFresh() {
+        val intent = Intent(this, AttendanceActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 
     private fun loadOverviewData() {

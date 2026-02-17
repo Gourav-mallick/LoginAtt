@@ -291,7 +291,8 @@ interface SessionDao {
     @Query("UPDATE sessions SET startTime = :start, endTime = :end WHERE sessionId = :sessionId")
     suspend fun updateSessionStartEndTime(sessionId: String, start: String, end: String)
 
-
+    @Query("DELETE FROM sessions WHERE sessionId = :sessionId")
+    suspend fun deleteSessionById(sessionId: String)
 
 }
 
@@ -441,7 +442,8 @@ AND studentId = :studentId
     @Query("UPDATE attendance SET startTime = :start, endTime = :end WHERE sessionId = :sessionId")
     suspend fun updateAttendanceStartEndTime(sessionId: String, start: String, end: String)
 
-
+    @Query("DELETE FROM attendance WHERE sessionId = :sessionId")
+    suspend fun deleteAttendanceBySessionId(sessionId: String)
 
 }
 
@@ -460,4 +462,8 @@ interface ActiveClassCycleDao {
 
     @Query("DELETE FROM ActiveClassCycle WHERE classroomId = :classroomId")
     suspend fun deleteByClassroomId(classroomId: String)
+
+
+    @Query("DELETE FROM ActiveClassCycle WHERE sessionId = :sessionId")
+    suspend fun deleteBySessionId(sessionId: String)
 }
