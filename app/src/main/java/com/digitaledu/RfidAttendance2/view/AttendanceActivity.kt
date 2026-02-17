@@ -37,7 +37,11 @@ import android.os.SystemClock
 import android.net.ConnectivityManager
 import android.os.Handler
 import android.os.Looper
+import android.view.Menu
+import android.view.MenuItem
 import com.digitaledu.RfidAttendance2.db.entity.ActiveClassCycle
+import android.widget.ImageView
+import android.widget.PopupMenu
 
 class AttendanceActivity : AppCompatActivity() {
 
@@ -73,6 +77,27 @@ class AttendanceActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_attendance)
+
+        val menuBtn = findViewById<ImageView>(R.id.btnMenu)
+
+        menuBtn.setOnClickListener { view ->
+            val popup = PopupMenu(this, view)
+            popup.menuInflater.inflate(R.menu.menu_attendance, popup.menu)
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+
+                    R.id.menu_cancel_session -> {
+                        confirmCancelSession()
+                        true
+                    }
+
+                    else -> false
+                }
+            }
+            popup.show()
+        }
+
         //if app exit then restore last cycle
         restoreLastCycleIfExists()
 
@@ -95,52 +120,124 @@ class AttendanceActivity : AppCompatActivity() {
         restorePendingSessions()
     }
 
+
+
+
+
+    private fun confirmCancelSession() {
+        if (currentTeacherId == null || currentVisibleClassroomId == null) {
+            Toast.makeText(this, "No active session!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Cancel Session")
+            .setMessage("This will DELETE current session and all attendance.\nAre you sure?")
+            .setCancelable(false)
+            .setPositiveButton("Yes") { _, _ ->
+                cancelCurrentSession()
+            }
+            .setNegativeButton("No", null)
+            .show()
+    }
+    private fun cancelCurrentSession() {
+        val classroomId = currentVisibleClassroomId ?: return
+        val teacherId = currentTeacherId ?: return
+        val cycle = activeSessions[Pair(classroomId, teacherId)] ?: return
+        val sessionId = cycle.sessionId ?: return
+
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(this@AttendanceActivity)
+
+            // 1. Delete all attendance of this session
+            db.attendanceDao().deleteAttendanceBySessionId(sessionId)
+
+            // 2. Delete session
+            db.sessionDao().deleteSessionById(sessionId)
+
+            // 3. Remove from activeSessions memory
+            activeSessions.remove(Pair(classroomId, teacherId))
+
+            // 4. Remove from ActiveClassCycle table
+            removeActiveSession(classroomId, teacherId)
+
+            // 5. Clear saved prefs (restore cycle data)
+            getSharedPreferences("AttendancePrefs", MODE_PRIVATE)
+                .edit().clear().apply()
+
+            // 6. Reset current state
+            currentTeacherId = null
+            currentVisibleClassroomId = null
+
+            Toast.makeText(
+                this@AttendanceActivity,
+                "Session cancelled successfully",
+                Toast.LENGTH_LONG
+            ).show()
+
+            // 7. Restart fresh Attendance screen
+            restartFresh()
+        }
+    }
+    private fun restartFresh() {
+        val intent = Intent(this, AttendanceActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
+
+
     override fun onResume() {
         super.onResume()
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         if (nfcAdapter == null) {
-            Toast.makeText(this, "NFC not supported on this device", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "NFC not supported", Toast.LENGTH_LONG).show()
             return
         }
 
-        pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE
+        if (!nfcAdapter!!.isEnabled) {
+            Toast.makeText(this, "Please enable NFC", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        nfcAdapter!!.enableReaderMode(
+            this,
+            { tag ->
+                runOnUiThread {
+                    val uid = tag.id.joinToString(":") { "%02X".format(it) }
+                    Log.d(TAG, "ReaderMode UID: $uid")
+                    readCustomCardData(tag)
+                }
+            },
+            NfcAdapter.FLAG_READER_NFC_A or
+                    NfcAdapter.FLAG_READER_NFC_B or
+                    NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
+            null
         )
 
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, null, null)
     }
 
     override fun onPause() {
         super.onPause()
-        try { nfcAdapter?.disableForegroundDispatch(this) } catch (_: Exception) {}
+        try {
+            nfcAdapter?.disableReaderMode(this)
+        } catch (_: Exception) {}
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        val tag = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
-        val tagId = tag.id.joinToString(":") { String.format("%02X", it) }
-        Log.d(TAG, "Tag UID: $tagId")
-        Log.d(TAG, "=========== CARD BASIC INFO ===========")
-        Log.d(TAG, "UID: ${tag.id.joinToString(":") { "%02X".format(it) }}")
-        Log.d(TAG, "TechList: ${tag.techList.joinToString()}")
-        Log.d(TAG, "=======================================")
-        readCustomCardData(tag)
 
-    }
+//    override fun onNewIntent(intent: Intent) {
+//        super.onNewIntent(intent)
+//        val tag = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG) ?: return
+//        val tagId = tag.id.joinToString(":") { String.format("%02X", it) }
+//        Log.d(TAG, "Tag UID: $tagId")
+//        readCustomCardData(tag)
+//    }
 
     // ---------------- NFC reading  ----------------
     private fun readCustomCardData(tag: Tag) {
         val prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
         val keyHex = prefs.getString("cpass", null)
-
-        Log.d(TAG, "=========== KEY DEBUG ===========")
-        Log.d(TAG, "=========== SERVER KEY DEBUG ===========")
-        Log.d(TAG, "Server Key HEX: $keyHex")
-        Log.d(TAG, "HEX Length: ${keyHex?.length}")       // MUST be 12
-
         if (keyHex.isNullOrEmpty()) {
             Toast.makeText(this, "Missing authentication key (cpass)!", Toast.LENGTH_LONG).show()
             Log.e(TAG, "No key found in SharedPreferences.")
@@ -156,6 +253,7 @@ class AttendanceActivity : AppCompatActivity() {
         Log.d(TAG, "Key bytes actual data: ${keyBytes.toString()}")
 
 
+        Log.d(TAG, "TechList: ${tag.techList.joinToString()}")
 
         val mifare = MifareClassic.get(tag)
         if (mifare == null) {
@@ -164,27 +262,10 @@ class AttendanceActivity : AppCompatActivity() {
             return
         }
 
-        Log.d(TAG, "=========== CARD MEMORY INFO ===========")
-        Log.d(TAG, "Type: ${mifare.type}")
-        Log.d(TAG, "Sector count: ${mifare.sectorCount}")
-        Log.d(TAG, "Block count: ${mifare.blockCount}")
-        Log.d(TAG, "========================================")
         try {
             mifare.connect()
-
-            val detectedSector = findSectorWithData(mifare, keyBytes)
-
-            if (detectedSector == -1) {
-                Toast.makeText(this, "No readable data found on card", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            Log.d(TAG, "Using detected sector: $detectedSector")
-
-
-            val sectorIndex = detectedSector
+            val sectorIndex = 0
             val auth = mifare.authenticateSectorWithKeyA(sectorIndex, keyBytes)
-
             if (!auth) {
                 Toast.makeText(this, "Authentication failed!", Toast.LENGTH_SHORT).show()
                 Log.e(TAG, "Authentication failed.")
@@ -1109,63 +1190,6 @@ private fun handleTeacherScan(teacherId: String, teacherName: String) {
 //        return result.distinct()
 //    }
 
-
-
-    private fun findSectorWithData(mifare: MifareClassic, serverKey: ByteArray): Int {
-
-        Log.d(TAG, "Trying authentication with SERVER key first...")
-
-        // ---------- STEP 1: Try SERVER KEY ----------
-        for (sector in 0 until mifare.sectorCount) {
-
-            val keyLog = serverKey.joinToString(" ") { "%02X".format(it) }
-            Log.d(TAG, "Trying Sector $sector with Server Key: $keyLog")
-
-            val authA = mifare.authenticateSectorWithKeyA(sector, serverKey)
-            val authB = mifare.authenticateSectorWithKeyB(sector, serverKey)
-
-            Log.d(TAG, "Sector $sector -> KeyA=$authA | KeyB=$authB")
-
-            if (authA || authB) {
-                Log.d(TAG, ">>> AUTH SUCCESS with SERVER KEY at Sector $sector <<<")
-                return sector
-            }
-        }
-
-        Log.e(TAG, "Server key failed on all sectors. Trying COMMON KEYS...")
-
-        // ---------- STEP 2: Try COMMON DEFAULT KEYS ----------
-        val commonKeysHex = arrayOf(
-            "FFFFFFFFFFFF",   // Default key
-            "A0A1A2A3A4A5",   // Transport key
-            "D3F7D3F7D3F7",   // NXP MAD key
-            "000000000000"    // Blank key
-        )
-
-        for (hex in commonKeysHex) {
-
-            val testKey = hexStringToByteArray(hex)
-            val keyLog = testKey.joinToString(" ") { "%02X".format(it) }
-
-            Log.d(TAG, "Trying COMMON KEY: $hex")
-
-            for (sector in 0 until mifare.sectorCount) {
-
-                val authA = mifare.authenticateSectorWithKeyA(sector, testKey)
-                val authB = mifare.authenticateSectorWithKeyB(sector, testKey)
-
-                Log.d(TAG, "Sector $sector -> KeyA=$authA | KeyB=$authB")
-
-                if (authA || authB) {
-                    Log.d(TAG, ">>> AUTH SUCCESS with COMMON KEY $hex at Sector $sector <<<")
-                    return sector
-                }
-            }
-        }
-
-        Log.e(TAG, "No key matched this card (Server + Common keys failed)")
-        return -1
-    }
 
 
 }

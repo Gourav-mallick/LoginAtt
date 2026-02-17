@@ -382,18 +382,27 @@ class SelectInstituteActivity : AppCompatActivity() {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val currentDate = sdf.format(Date())
 
-        val telephonyManager = context.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-        val imei = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) telephonyManager.imei ?: "N/A"
-            else telephonyManager.deviceId ?: "N/A"
-        } catch (e: Exception) { "N/A" }
+//        val telephonyManager = context.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+//        val imei = try {
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) telephonyManager.imei ?: "N/A"
+//            else telephonyManager.deviceId ?: "N/A"
+//        } catch (e: Exception) { "N/A" }
+//
+//        val serialNo = try {
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Build.getSerial()
+//            else Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+//        } catch (e: Exception) {
+//            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+//        }
 
-        val serialNo = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Build.getSerial()
-            else Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        } catch (e: Exception) {
-            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        }
+        val androidId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        ) ?: "UNKNOWN"
+
+        val imei = androidId
+        val serialNo = androidId
+
 
         val bm = context.getSystemService(BATTERY_SERVICE) as? BatteryManager
         val batteryLevel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && bm != null)
