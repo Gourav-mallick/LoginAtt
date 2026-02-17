@@ -95,6 +95,24 @@ class AttendanceActivity : AppCompatActivity() {
         restorePendingSessions()
     }
 
+//    override fun onResume() {
+//        super.onResume()
+//
+//        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+//        if (nfcAdapter == null) {
+//            Toast.makeText(this, "NFC not supported on this device", Toast.LENGTH_LONG).show()
+//            return
+//        }
+//
+//        pendingIntent = PendingIntent.getActivity(
+//            this, 0,
+//            Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+//            PendingIntent.FLAG_IMMUTABLE
+//        )
+//
+//        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, null, null)
+//    }
+
     override fun onResume() {
         super.onResume()
 
@@ -104,19 +122,29 @@ class AttendanceActivity : AppCompatActivity() {
             return
         }
 
-        pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE
+        nfcAdapter?.enableReaderMode(
+            this,
+            { tag ->
+                readCustomCardData(tag)   // ❗ NO runOnUiThread
+            },
+            NfcAdapter.FLAG_READER_NFC_A or
+                    NfcAdapter.FLAG_READER_NFC_B or
+                    NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or
+                    NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS,
+            null
         )
-
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, null, null)
     }
 
-    override fun onPause() {
-        super.onPause()
-        try { nfcAdapter?.disableForegroundDispatch(this) } catch (_: Exception) {}
-    }
+
+//    override fun onPause() {
+//        super.onPause()
+//        try { nfcAdapter?.disableForegroundDispatch(this) } catch (_: Exception) {}
+//    }
+override fun onPause() {
+    super.onPause()
+    try { nfcAdapter?.disableReaderMode(this) } catch (_: Exception) {}
+}
+
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

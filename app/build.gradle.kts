@@ -10,7 +10,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.login"
+        applicationId = "com.digitaledu.RfidAttendance2"
         minSdk = 19
         targetSdk = 36
         versionCode = 2

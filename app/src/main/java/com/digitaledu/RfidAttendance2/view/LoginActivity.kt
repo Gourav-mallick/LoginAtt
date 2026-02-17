@@ -90,16 +90,28 @@ class LoginActivity : AppCompatActivity() {
 
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val hasInternet = withContext(Dispatchers.IO) { CheckNetworkAndInternetUtils.hasInternetAccess() }
+//                    val hasInternet = withContext(Dispatchers.IO) { CheckNetworkAndInternetUtils.hasInternetAccess() }
+//                    if (!hasInternet) {
+//                        Toast.makeText(
+//                            this@LoginActivity,
+//                            "No internet access. Please check your connection.",
+//                            Toast.LENGTH_LONG
+//                        ).show()
+//                        return@launch
+//                    }
+
+                    val hasInternet = CheckNetworkAndInternetUtils.hasInternetAccess()
+
                     if (!hasInternet) {
-                        Toast.makeText(
-                            this@LoginActivity,
-                            "No internet access. Please check your connection.",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@LoginActivity,
+                                "No internet access. Please check your connection.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                         return@launch
                     }
-
 
 
                     val retrofit = ApiClient.getClient(baseUrl, HASH) // Pass hash for header

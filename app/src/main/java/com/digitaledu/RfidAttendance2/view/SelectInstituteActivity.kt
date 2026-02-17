@@ -376,42 +376,52 @@ class SelectInstituteActivity : AppCompatActivity() {
 
 
 
-    @SuppressLint("HardwareIds", "MissingPermission")
+    @SuppressLint("HardwareIds")
     fun getDeviceUtilityQueryParams(context: Context): String {
+
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val currentDate = sdf.format(Date())
 
-        val telephonyManager = context.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-        val imei = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) telephonyManager.imei ?: "N/A"
-            else telephonyManager.deviceId ?: "N/A"
-        } catch (e: Exception) { "N/A" }
+        // 🔹 Always safe unique device id (use instead of Serial)
+        val androidId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        ) ?: "UNKNOWN"
 
-        val serialNo = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Build.getSerial()
-            else Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        } catch (e: Exception) {
-            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        }
+        // 🔹 Try IMEI (restricted on Android 10+ → fallback to androidId)
+        val deviceId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        ) ?: "UNKNOWN"
 
-        val bm = context.getSystemService(BATTERY_SERVICE) as? BatteryManager
-        val batteryLevel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && bm != null)
-            bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) else -1
+        val imei = deviceId        // Use same value
 
-        val connectivityManager = context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+
+
+        val serialNo = androidId   // NEVER use Build.getSerial()
+
+        // 🔹 Battery level
+        val batteryLevel = try {
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            else -1
+        } catch (e: Exception) { -1 }
+
+        // 🔹 Connectivity
         val connectivity = try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val network = connectivityManager.activeNetwork
-                val capabilities = connectivityManager.getNetworkCapabilities(network)
+                val network = cm.activeNetwork ?: return "NO_CONNECTION"
+                val caps = cm.getNetworkCapabilities(network) ?: return "NO_CONNECTION"
                 when {
-                    capabilities == null -> "NO_CONNECTION"
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WIFI"
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "MOBILE"
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WIFI"
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "MOBILE"
                     else -> "UNKNOWN"
                 }
             } else {
-                val info = connectivityManager.activeNetworkInfo
+                val info = cm.activeNetworkInfo
                 when {
                     info == null || !info.isConnected -> "NO_CONNECTION"
                     info.type == ConnectivityManager.TYPE_WIFI -> "WIFI"
@@ -421,11 +431,12 @@ class SelectInstituteActivity : AppCompatActivity() {
             }
         } catch (e: Exception) { "UNKNOWN" }
 
+        // 🔹 App version
         val appVersion = try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
         } catch (e: Exception) { "1.0" }
 
-        // ✅ Return proper JSON string just like server expects
+        // 🔹 JSON
         return """
         {
           "deviceUtilityParamData": {
@@ -447,5 +458,6 @@ class SelectInstituteActivity : AppCompatActivity() {
         }
     """.trimIndent()
     }
+
 
 }
